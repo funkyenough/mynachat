@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "methods": {
+    "prescription": {
+      "name": { "ja": "処方薬による証明", "en": "Prescription proxy" },
+      "source": "/api/my/healthinfo/get-medicine-info",
+      "strength": "proxy",
+      "available": true
+    },
+    "nanbyo": {
+      "name": { "ja": "指定難病の認定", "en": "指定難病 certification" },
+      "source": "/api/my/selfinfo/get (TM00000000000082)",
+      "strength": "certified",
+      "available": true
+    },
+    "pmh": {
+      "name": { "ja": "医療受給者証 (PMH)", "en": "Medical subsidy certificate (PMH)" },
+      "source": "/api/my/pmh-info/send-medicalsubsidy/v3",
+      "strength": "certified",
+      "available": true
+    },
+    "diagnosis": {
+      "name": { "ja": "傷病名 (電子カルテ)", "en": "Diagnosis record (EHR)" },
+      "source": "/api/my/healthinfo/get-six-medical-info (SBM)",
+      "strength": "diagnosed",
+      "available": false,
+      "note": "電子カルテ情報共有サービス: full operation planned Jan–Feb 2027"
+    }
+  },
+  "groups": [
+    {
+      "id": "hayfever",
+      "name": { "ja": "花粉症", "en": "Hay fever" },
+      "description": { "ja": "デモ用グループ", "en": "Demo group" },
+      "methods": {
+        "prescription": {
+          "drugStems": [
+            "フェキソフェナジン", "アレグラ", "ビラスチン", "ビラノア", "デスロラタジン", "デザレックス",
+            "ルパタジン", "ルパフィン", "レボセチリジン", "ザイザル", "セチリジン", "ジルテック",
+            "ロラタジン", "クラリチン", "オロパタジン", "アレロック", "エピナスチン", "アレジオン",
+            "エバスチン", "エバステル", "ベポタスチン", "タリオン", "モンテルカスト", "シングレア",
+            "キプレス", "プランルカスト", "オノン", "モメタゾン", "ナゾネックス", "フルチカゾン",
+            "アラミスト", "エンペラシン", "セレスタミン"
+          ]
+        }
+      }
+    },
+    {
+      "id": "nanbyo-any",
+      "name": { "ja": "指定難病（全般）", "en": "Designated intractable disease (any)" },
+      "description": {
+        "ja": "指定難病の医療費助成または登録者証をお持ちの方",
+        "en": "Anyone certified for a 指定難病 (subsidy or 登録者証)"
+      },
+      "methods": {
+        "nanbyo": {},
+        "pmh": { "copaymentLimitManageFormCodes": ["54"] }
+      }
+    },
+    {
+      "id": "sma",
+      "name": { "ja": "脊髄性筋萎縮症 (SMA)", "en": "Spinal muscular atrophy (SMA)" },
+      "description": {
+        "ja": "指定難病3。疾患名は自己申告、認定または治療薬で確認",
+        "en": "指定難病 #3. Disease self-declared, backed by certification or disease-specific drugs"
+      },
+      "methods": {
+        "prescription": { "drugStems": ["スピンラザ", "ヌシネルセン", "エブリスディ", "リスジプラム", "ゾルゲンスマ", "オナセムノゲン"] },
+        "nanbyo": {},
+        "pmh": { "copaymentLimitManageFormCodes": ["54", "52"] },
+        "diagnosis": { "medisCodes": [], "note": "fill with 標準病名マスター 病名管理番号 for SMA" }
+      }
+    }
+  ]
+}

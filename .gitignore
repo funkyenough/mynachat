@@ -9,3 +9,14 @@ selfinfo_run.log
 __pycache__/
 *.pyc
 .DS_Store
+
+# Secrets and build output
+.env
+.env.local
+.env.*.local
+node_modules/
+.next/
+target/
+dist/
+*.sqlite
+*.db
