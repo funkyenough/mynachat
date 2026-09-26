@@ -47,6 +47,25 @@
       }
     },
     {
+      "id": "migraine",
+      "icd10": ["G43"],
+      "name": { "ja": "片頭痛", "en": "Migraine" },
+      "description": {
+        "ja": "片頭痛の治療薬（トリプタン系・予防薬）の処方で確認",
+        "en": "Verified by a migraine-specific prescription (triptans or preventives)"
+      },
+      "methods": {
+        "prescription": {
+          "drugStems": [
+            "スマトリプタン", "イミグラン", "ゾルミトリプタン", "ゾーミッグ", "エレトリプタン", "レルパックス",
+            "リザトリプタン", "マクサルト", "ナラトリプタン", "アマージ", "ラスミジタン", "レイボー",
+            "ロメリジン", "ミグシス", "ガルカネズマブ", "エムガルティ", "フレマネズマブ", "アジョビ",
+            "エレヌマブ", "アイモビーグ"
+          ]
+        }
+      }
+    },
+    {
       "id": "nanbyo-any",
       "name": { "ja": "指定難病（全般）", "en": "Designated intractable disease (any)" },
       "description": {

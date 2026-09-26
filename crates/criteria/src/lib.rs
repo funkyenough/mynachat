@@ -311,6 +311,18 @@ mod tests {
     }
 
     #[test]
+    fn prescriptions_only_open_their_own_group() {
+        let hay_fever = Revealed::Prescription { drug_names: vec!["ビラノア錠２０ｍｇ".into()] };
+        let migraine = Revealed::Prescription { drug_names: vec!["イミグラン錠５０".into()] };
+        assert!(eval("hayfever", hay_fever.clone()).passed);
+        assert!(!eval("migraine", hay_fever).passed, "a hay fever drug must not open the migraine group");
+        let v = eval("migraine", migraine.clone());
+        assert!(v.passed, "{v:?}");
+        assert_eq!(v.evidence, "prescribed イミグラン");
+        assert!(!eval("hayfever", migraine).passed, "a migraine drug must not open the hay fever group");
+    }
+
+    #[test]
     fn method_not_accepted() {
         let v = eval("hayfever", Revealed::Pmh { form_codes: vec!["54".into()] });
         assert!(!v.passed);
