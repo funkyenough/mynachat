@@ -36,10 +36,18 @@ export async function POST(req: Request) {
   // 4.0 proof from that credential's issuer, never a legacy fallback.
   const want = WORLD_CREDENTIALS[config.credential];
   if (want.v4) {
-    if (result.protocol_version !== "4.0") return fail(400, `a World ID 4.0 ${want.label} credential is required`);
+    // What World App actually returned, safe to show: no proof or nullifier values.
+    const got = {
+      protocol_version: result.protocol_version,
+      responses: responses.map((r) => ({ identifier: r?.identifier, issuer_schema_id: r?.issuer_schema_id })),
+    };
+    console.warn("[verify-world-id] result shape", JSON.stringify(got));
+    if (result.protocol_version !== "4.0") {
+      return fail(400, `a World ID 4.0 ${want.label} credential is required`, { got });
+    }
     for (const r of responses) {
       if (r?.identifier !== config.credential || Number(r?.issuer_schema_id) !== want.issuerSchemaId) {
-        return fail(400, `proof is not from a ${want.label} credential`);
+        return fail(400, `proof is not from a ${want.label} credential`, { got });
       }
     }
   }
