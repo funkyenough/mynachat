@@ -43,4 +43,9 @@ export const ACCOUNT_ACTION = `${ACTION_PREFIX}account`;
 export const pollAction = (pollId: number) => `${ACTION_PREFIX}poll-${pollId}`;
 
 /** World ID settings passed to client components. */
-export const worldConfig = { appId: config.appId, environment: config.environment, credential: config.credential };
+export const worldConfig = {
+  appId: config.appId,
+  environment: config.environment,
+  credential: config.credential,
+  debug: process.env.WLD_DEBUG === "1",
+};

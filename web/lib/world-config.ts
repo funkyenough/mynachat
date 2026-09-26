@@ -5,4 +5,6 @@ export type WorldConfig = {
   appId: `app_${string}`;
   environment: "production" | "staging";
   credential: WorldCredential;
+  /** WLD_DEBUG=1: IDKit debug mode, and failed/timed-out requests report to the server log. */
+  debug: boolean;
 };

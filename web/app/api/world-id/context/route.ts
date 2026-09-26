@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     default:
       return fail(400, "unknown purpose");
   }
+  if (r.session) console.info(`[world-id] session ${r.session} requested (${body.purpose})`);
   try {
     return json({ rpContext: rpContext(r.action), ...r });
   } catch (e) {

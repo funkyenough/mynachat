@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   CredentialRequest,
   IDKitRequestWidget,
   IDKitSessionWidget,
+  setDebug,
+  type IDKitDebugReport,
   type IDKitResult,
   type RpContext,
 } from "@worldcoin/idkit";
@@ -35,15 +37,34 @@ type SignedRequest = {
   sessionId?: `session_${string}`;
 };
 
+/** How long a session request may wait for World App before it fails (and, in debug, reports). */
+const SESSION_TIMEOUT_MS = 120_000;
+
+/** Masks proofs, nullifiers, session ids and other long hex so debug reports are safe to log. */
+function redact(v: unknown): unknown {
+  if (typeof v === "string") {
+    if (/^(0x)?[0-9a-fA-F]{32,}$/.test(v) || /^session_[0-9a-fA-F]+$/.test(v)) return `<hex:${v.length}>`;
+    return v.length > 400 ? `${v.slice(0, 400)}…<${v.length}>` : v;
+  }
+  if (Array.isArray(v)) return v.map(redact);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, redact(x)]));
+  return v;
+}
+
 /** A button that fetches a signed IDKit request, then opens the matching World ID widget. */
 export default function WorldIdButton({ world, context, label, disabled, className, onVerify, onSuccess, onError }: Props) {
   const [req, setReq] = useState<SignedRequest | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // IDKit swallows errors thrown by handleVerify and reports a generic code instead, so pass
+  // the backend's message on ourselves and skip the generic code that follows it.
+  const hostFailed = useRef(false);
 
   async function start() {
     setBusy(true);
     try {
+      if (world.debug) setDebug(true);
+      hostFailed.current = false;
       setReq(await api("/api/world-id/context", context));
       setOpen(true);
     } catch (e) {
@@ -52,6 +73,25 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
       setBusy(false);
     }
   }
+
+  const verify = async (result: IDKitResult) => {
+    try {
+      await onVerify(result);
+    } catch (e) {
+      hostFailed.current = true;
+      onError(errMsg(e));
+      throw e;
+    }
+  };
+
+  const failed = (code: string, report?: IDKitDebugReport) => {
+    if (world.debug) {
+      const payload = { code, purpose: context.purpose, kind: req?.session ?? "request", report: redact(report ?? null) };
+      console.error("[world-id debug]", payload);
+      void api("/api/debug/world-id", payload).catch(() => {});
+    }
+    if (!hostFailed.current) onError(`World ID: ${code}`);
+  };
 
   return (
     <>
@@ -67,9 +107,10 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
           environment={world.environment}
           constraints={CredentialRequest(world.credential, { signal: req.signal })}
           existing_session_id={req.session === "prove" ? req.sessionId : undefined}
-          handleVerify={onVerify}
+          polling={{ timeout: SESSION_TIMEOUT_MS }}
+          handleVerify={verify}
           onSuccess={onSuccess}
-          onError={(code) => onError(`World ID: ${code}`)}
+          onError={failed}
         />
       )}
       {req && !req.session && req.action && (
@@ -85,9 +126,9 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
           allow_legacy_proofs={false}
           environment={world.environment}
           constraints={CredentialRequest(world.credential, { signal: req.signal })}
-          handleVerify={onVerify}
+          handleVerify={verify}
           onSuccess={onSuccess}
-          onError={(code) => onError(`World ID: ${code}`)}
+          onError={failed}
         />
       )}
     </>
