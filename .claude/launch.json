@@ -4,13 +4,36 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "web", "dev"],
+      "runtimeArgs": [
+        "--dir",
+        "web",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "web-dev-fakes",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["DEV_FAKE_WORLD_ID=1", "DEV_FAKE_MYNA=1", "pnpm", "--dir", "web", "dev"],
+      "runtimeArgs": [
+        "DEV_FAKE_WORLD_ID=1",
+        "DEV_FAKE_MYNA=1",
+        "pnpm",
+        "--dir",
+        "web",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "web-screenshots",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DB_PATH=data/screenshots.sqlite",
+        "pnpm",
+        "--dir",
+        "web",
+        "dev"
+      ],
       "port": 3000
     }
   ]
