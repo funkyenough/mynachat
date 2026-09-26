@@ -6,6 +6,10 @@ primary_region = "nrt"
 [build]
   dockerfile = "deploy/fly/Dockerfile"
 
+[env]
+  # World ID actions are one-time per person; keep production's separate from local dev ("dev-").
+  WLD_ACTION_PREFIX = "prod-"
+
 [[mounts]]
   source = "data"
   destination = "/data"

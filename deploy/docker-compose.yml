@@ -12,6 +12,7 @@ services:
       WEBAUTHN_ORIGIN: https://${DOMAIN}
       VERIFIER_AUDIT_DIR: /audit
       AUDIT_ENABLED: "1"
+      WLD_ACTION_PREFIX: ${WLD_ACTION_PREFIX:-prod-}
       DEV_FAKE_MYNA: "0"
       DEV_FAKE_WORLD_ID: "0"
     volumes:

@@ -35,8 +35,12 @@ export const SESSION_TTL_MS = 30 * 60 * 1000;
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
 /** World ID actions. "account" gives one account per human; each poll gets its own action. */
-export const ACCOUNT_ACTION = "account";
-export const pollAction = (pollId: number) => `poll-${pollId}`;
+// Uniqueness proofs are one-time per person and action, and actions are shared by every
+// deployment on the same World ID app/RP. Prefix them per deployment (WLD_ACTION_PREFIX,
+// e.g. "prod-" / "dev-") so local testing never spends a production proof.
+const ACTION_PREFIX = process.env.WLD_ACTION_PREFIX ?? "";
+export const ACCOUNT_ACTION = `${ACTION_PREFIX}account`;
+export const pollAction = (pollId: number) => `${ACTION_PREFIX}poll-${pollId}`;
 
 /** World ID settings passed to client components. */
 export const worldConfig = { appId: config.appId, environment: config.environment, credential: config.credential };
