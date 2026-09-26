@@ -32,15 +32,13 @@ export async function POST(req: Request) {
     accountId = db.tx(() => {
       let id = ch.data.accountId as number | null;
       if (ch.data.signupId) {
-        const s = db.get<{ state: string; world_nullifier: string; world_session_id: string | null }>(
-          "SELECT state, world_nullifier, world_session_id FROM signups WHERE id = ?", [ch.data.signupId]);
+        const s = db.get<{ state: string; world_nullifier: string }>(
+          "SELECT state, world_nullifier FROM signups WHERE id = ?", [ch.data.signupId]);
         if (s?.state !== "human") throw new Error("signup already used");
         if (!id) {
-          id = db.exec(
-            `INSERT INTO accounts (username, world_nullifier, world_session_id, webauthn_user_id, created_at)
-             VALUES (?, ?, ?, ?, ?)`,
-            [ch.data.username, s.world_nullifier, s.world_session_id, ch.data.userId, Date.now()],
-          );
+          id = db.exec("INSERT INTO accounts (username, world_nullifier, webauthn_user_id, created_at) VALUES (?, ?, ?, ?)", [
+            ch.data.username, s.world_nullifier, ch.data.userId, Date.now(),
+          ]);
         }
         db.exec("UPDATE signups SET state = 'done', account_id = ? WHERE id = ?", [id, ch.data.signupId]);
       }

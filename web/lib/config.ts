@@ -8,7 +8,6 @@ export const WORLD_CREDENTIALS = {
   mnc: { issuerSchemaId: 9310, label: "My Number Card" },
   proof_of_human: { issuerSchemaId: 1, label: "Proof of human (Orb)" },
   passport: { issuerSchemaId: 9303, label: "Passport" },
-  selfie: { issuerSchemaId: 11, label: "Selfie Check" },
 } as const;
 export type WorldCredential = keyof typeof WORLD_CREDENTIALS;
 
@@ -32,7 +31,7 @@ export const config = {
 /** Enrollment sessions expire this long after creation. */
 export const SESSION_TTL_MS = 30 * 60 * 1000;
 
-/** Signup/recovery challenges (World ID step, passkey step) expire this long after creation. */
+/** Signup challenges (World ID step, passkey step) expire this long after creation. */
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
 /** World ID actions. "account" gives one account per human; each poll gets its own action. */

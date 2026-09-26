@@ -13,11 +13,7 @@ import type { WorldConfig } from "@/lib/world-config";
 type Props = { world: WorldConfig; next: string; devFakeWorld: boolean };
 type Phase = "human" | "passkey";
 
-/**
- * Signup: a World ID uniqueness proof ("account": one account per human), then a username and
- * a passkey. Recovery (a World ID session saved on the account) is set up separately and
- * optionally from the account page.
- */
+/** Signup: a World ID uniqueness proof ("account": one account per human), then a username and a passkey. */
 export default function SignupFlow({ world, next, devFakeWorld }: Props) {
   const router = useRouter();
   const { t } = useT();
@@ -95,13 +91,12 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
         <h2 className="flush">{t("この World ID にはすでにアカウントがあります", "You already have an account")}</h2>
         <p className="small muted">
           {t(
-            "1人につき1アカウントです。この端末にパスキーがあればログインしてください。パスキーをなくした場合は、World ID で復旧できます。",
-            "It's one account per person. Log in with your passkey, or recover the account with World ID if you lost it.",
+            "1人につき1アカウントです。登録したパスキーでログインしてください。",
+            "It's one account per person. Log in with the passkey you registered.",
           )}
         </p>
         <div className="row">
           <Link className="button" href={`/login?next=${encodeURIComponent(next)}`}>{t("ログイン", "Log in")}</Link>
-          <Link className="button secondary" href={`/recover?next=${encodeURIComponent(next)}`}>{t("復旧する", "Recover")}</Link>
         </div>
       </section>
     );
@@ -171,8 +166,8 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
           </label>
           <p className="small muted">
             {t(
-              "ユーザー名はログインと復旧に使い、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。登録後、アカウントページで World ID による復旧を設定できます。",
-              "Your username is for logging in and recovery, and is never shown on boards. Each group gets its own display name, so groups can't be linked to each other. After signing up, you can set up World ID recovery on your account page.",
+              "ユーザー名はアカウントの識別用で、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。",
+              "Your username identifies your account and is never shown on boards. Each group gets its own display name, so groups can't be linked to each other.",
             )}
           </p>
           <div className="row">

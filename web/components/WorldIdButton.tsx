@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import {
   CredentialRequest,
   IDKitRequestWidget,
-  IDKitSessionWidget,
   setDebug,
   type IDKitDebugReport,
   type IDKitResult,
@@ -15,10 +14,7 @@ import type { WorldConfig } from "@/lib/world-config";
 
 type Props = {
   world: WorldConfig;
-  /**
-   * Body for /api/world-id/context: which proof to request and what to bind as the signal.
-   * The server answers with a uniqueness request (an action) or a session request (create or prove).
-   */
+  /** Body for /api/world-id/context: which action to sign and what to bind as the signal. */
   context: Record<string, unknown>;
   label: React.ReactNode;
   disabled?: boolean;
@@ -29,23 +25,12 @@ type Props = {
   onError: (message: string) => void;
 };
 
-type SignedRequest = {
-  rpContext: RpContext;
-  signal: string;
-  action?: string;
-  session?: "create" | "prove";
-  sessionId?: `session_${string}`;
-  /** Debug experiments only: credential and whether to attach the signal. */
-  variant?: { credential: "proof_of_human" | "selfie"; signal: boolean };
-};
+type SignedRequest = { rpContext: RpContext; action: string; signal: string };
 
-/** How long a session request may wait for World App before it fails (and, in debug, reports). */
-const SESSION_TIMEOUT_MS = 120_000;
-
-/** Masks proofs, nullifiers, session ids and other long hex so debug reports are safe to log. */
+/** Masks proofs, nullifiers and other long hex so debug reports are safe to log. */
 function redact(v: unknown): unknown {
   if (typeof v === "string") {
-    if (/^(0x)?[0-9a-fA-F]{32,}$/.test(v) || /^session_[0-9a-fA-F]+$/.test(v)) return `<hex:${v.length}>`;
+    if (/^(0x)?[0-9a-fA-F]{32,}$/.test(v)) return `<hex:${v.length}>`;
     return v.length > 400 ? `${v.slice(0, 400)}…<${v.length}>` : v;
   }
   if (Array.isArray(v)) return v.map(redact);
@@ -53,7 +38,7 @@ function redact(v: unknown): unknown {
   return v;
 }
 
-/** A button that fetches a signed IDKit request, then opens the matching World ID widget. */
+/** A button that fetches a signed IDKit request for one action, then opens the World ID widget. */
 export default function WorldIdButton({ world, context, label, disabled, className, onVerify, onSuccess, onError }: Props) {
   const [req, setReq] = useState<SignedRequest | null>(null);
   const [open, setOpen] = useState(false);
@@ -88,7 +73,7 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
 
   const failed = (code: string, report?: IDKitDebugReport) => {
     if (world.debug) {
-      const payload = { code, purpose: context.purpose, kind: req?.session ?? "request", variant: req?.variant, report: redact(report ?? null) };
+      const payload = { code, purpose: context.purpose, report: redact(report ?? null) };
       console.error("[world-id debug]", payload);
       void api("/api/debug/world-id", payload).catch(() => {});
     }
@@ -100,25 +85,7 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
       <button type="button" className={className} onClick={start} disabled={disabled || busy}>
         {busy ? "…" : label}
       </button>
-      {req?.session && (
-        <IDKitSessionWidget
-          open={open}
-          onOpenChange={setOpen}
-          app_id={world.appId}
-          rp_context={req.rpContext}
-          environment={world.environment}
-          constraints={CredentialRequest(
-            req.variant?.credential ?? world.credential,
-            req.variant && !req.variant.signal ? {} : { signal: req.signal },
-          )}
-          existing_session_id={req.session === "prove" ? req.sessionId : undefined}
-          polling={{ timeout: SESSION_TIMEOUT_MS }}
-          handleVerify={verify}
-          onSuccess={onSuccess}
-          onError={failed}
-        />
-      )}
-      {req && !req.session && req.action && (
+      {req && (
         <IDKitRequestWidget
           open={open}
           onOpenChange={setOpen}

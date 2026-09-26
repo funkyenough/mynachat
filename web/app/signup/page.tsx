@@ -18,9 +18,6 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       <p className="muted small">
         {t("すでにアカウントがありますか？", "Already have an account?")}{" "}
         <Link href={`/login?next=${encodeURIComponent(next)}`}>{t("ログイン", "Log in")}</Link>
-        <br />
-        {t("パスキーをなくした場合は", "Lost your passkey?")}{" "}
-        <Link href={`/recover?next=${encodeURIComponent(next)}`}>{t("World ID で復旧", "Recover with World ID")}</Link>
       </p>
       <SignupFlow world={worldConfig} next={next} devFakeWorld={process.env.DEV_FAKE_WORLD_ID === "1"} />
     </div>

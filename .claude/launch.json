@@ -10,7 +10,7 @@
     {
       "name": "web-dev-fakes",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["DEV_FAKE_WORLD_ID=1", "DEV_FAKE_MYNA=1", "WLD_DEBUG=1", "pnpm", "--dir", "web", "dev"],
+      "runtimeArgs": ["DEV_FAKE_WORLD_ID=1", "DEV_FAKE_MYNA=1", "pnpm", "--dir", "web", "dev"],
       "port": 3000
     }
   ]

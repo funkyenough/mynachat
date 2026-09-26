@@ -19,10 +19,10 @@ web   POST /api/signup/start                              -> {signupId}
 web   POST /api/world-id/context {purpose:"account", signupId}
                                                           -> {rpContext, action:"account", signal: signupId}
 web   IDKit (credential WLD_CREDENTIAL, default mnc), then
-      POST /api/signup/world-id {signupId, idkitResult}  -> {existing: {username} | null}
-        verifies with developer.world.org; the "account" nullifier is one per human.
-        existing != null means recovery: the next step adds a passkey to that account.
-web   POST /api/passkey/register/options {signupId, username?} -> {challengeId, options}
+      POST /api/signup/world-id {signupId, idkitResult}  -> {ok}
+        verifies with developer.world.org; the "account" nullifier is one per human
+        (409 if it already has an account).
+web   POST /api/passkey/register/options {signupId, username} -> {challengeId, options}
       navigator.credentials.create (SimpleWebAuthn)
       POST /api/passkey/register/verify {challengeId, response} -> creates account, sets mnd_login cookie
 ```
@@ -49,7 +49,7 @@ web            POST /api/enroll/complete {sessionId} -> member of the group (ses
 
 | action | when | signal | stored |
 |---|---|---|---|
-| `account` | signup / recovery | signupId | `accounts.world_nullifier` (one account per human) |
+| `account` | signup | signupId | `accounts.world_nullifier` (one account per human) |
 | `poll-<id>` | voting in a board poll | `vote:<optionId>` | `poll_votes` keyed by nullifier only (secret ballot, no member id) |
 
 - The web page talks to the extension only through `window.postMessage`; the

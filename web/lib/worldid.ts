@@ -1,18 +1,11 @@
-// Server-side World ID checks shared by signup, account recovery and poll voting.
-//
-// World ID 4.0 has two proof kinds:
-// - uniqueness proofs for an action: the nullifier is one-time, so World App refuses to prove
-//   the same action twice (`nullifier_replayed`). Used for "one account per human" and votes.
-// - session proofs: created once, then re-proven on later visits; `session_id` is the stable
-//   link to a returning person. Used for account recovery.
+// Server-side World ID checks shared by signup and poll voting: uniqueness proofs for an
+// action, whose nullifier is one per person and action ("one account per human", one vote).
 import { hashSignal } from "@worldcoin/idkit-core/hashing";
 import { signRequest } from "@worldcoin/idkit-core/signing";
-import { config, WORLD_CREDENTIALS, type WorldCredential } from "./config";
-import { getDb, isUniqueViolation } from "./db";
+import { config, WORLD_CREDENTIALS } from "./config";
 
 type Failure = { ok: false; status: number; error: string; extra?: Record<string, unknown> };
 export type WorldIdCheck = { ok: true; nullifier: string } | Failure;
-export type WorldSessionCheck = { ok: true; sessionId: string } | Failure;
 
 const bad = (error: string, extra?: Record<string, unknown>, status = 400): Failure => {
   // Reason only (no proof or nullifier values), so failed proofs can be diagnosed from the logs.
@@ -20,8 +13,8 @@ const bad = (error: string, extra?: Record<string, unknown>, status = 400): Fail
   return { ok: false, status, error, extra };
 };
 
-/** RP context for IDKit: signed for one action, or without one for session proofs. */
-export function rpContext(action?: string) {
+/** RP context for IDKit, signed for one action. */
+export function rpContext(action: string) {
   const key = process.env.RP_SIGNING_KEY;
   if (!key) throw new Error("RP_SIGNING_KEY is not set in web/.env.local");
   const { sig, nonce, createdAt, expiresAt } = signRequest({ signingKeyHex: key, action });
@@ -42,7 +35,7 @@ export async function verifyWorldId(result: any, action: string, signal: string)
   if (!result || typeof result !== "object") return bad("idkitResult required");
   if (result.session_id !== undefined) return bad("session proofs not accepted");
   if (result.action !== undefined && result.action !== action) return bad("action mismatch");
-  const shared = checkShared(result, signal, true);
+  const shared = checkShared(result, signal);
   if (shared) return shared;
   const responses: any[] = result.responses;
 
@@ -65,69 +58,14 @@ export async function verifyWorldId(result: any, action: string, signal: string)
   return { ok: true, nullifier };
 }
 
-/**
- * Checks a session proof (IDKitSessionWidget result): locally, then with the developer portal.
- * `expectedSessionId` = the account's saved session when re-proving it; null when creating one.
- * Each accepted session nullifier is stored, so the same proof can't be used twice.
- */
-export async function verifyWorldSession(result: any, signal: string, expectedSessionId: string | null): Promise<WorldSessionCheck> {
-  if (!result || typeof result !== "object") return bad("idkitResult required");
-  const sessionId = result.session_id;
-  if (typeof sessionId !== "string" || !/^session_[0-9a-fA-F]+$/.test(sessionId)) return bad("not a World ID session proof");
-  if (expectedSessionId !== null && sessionId !== expectedSessionId) {
-    return bad("this World ID is not the one linked to that account", undefined, 403);
-  }
-  // Session responses carry a signal hash only when World App includes one; check it if present.
-  // WLD_DEBUG: session experiments may also use Selfie Check (the credential World documents for sessions).
-  const creds: WorldCredential[] = process.env.WLD_DEBUG === "1" ? [config.credential, "selfie"] : [config.credential];
-  const shared = checkShared(result, signal, false, creds);
-  if (shared) return shared;
-  const nullifiers: string[] = [];
-  for (const r of result.responses) {
-    const n = Array.isArray(r?.session_nullifier) ? r.session_nullifier[0] : undefined;
-    if (typeof n !== "string" || !n) return bad("session proof has no session nullifier");
-    nullifiers.push(n.toLowerCase());
-  }
-
-  let verify: any;
-  try {
-    verify = await verifyV4(result);
-  } catch {
-    return bad("could not reach world id verify endpoint", undefined, 502);
-  }
-  if (verify?.success !== true) {
-    return bad("world id verification failed", { detail: verify?.detail ?? verify?.code ?? "unknown" });
-  }
-  if (verify.environment !== undefined && verify.environment !== config.environment) return bad("environment mismatch (portal)");
-  if (verify.session_id !== undefined && verify.session_id !== sessionId) return bad("session mismatch (portal)");
-
-  const db = await getDb();
-  try {
-    db.tx(() => {
-      for (const n of nullifiers) {
-        db.exec("INSERT INTO world_session_nullifiers (nullifier, created_at) VALUES (?, ?)", [n, Date.now()]);
-      }
-    });
-  } catch (e) {
-    if (isUniqueViolation(e)) return bad("this World ID proof was already used; try again");
-    throw e;
-  }
-  return { ok: true, sessionId };
-}
-
-/** Environment, protocol, credential and signal checks shared by both proof kinds. */
-function checkShared(
-  result: any,
-  signal: string,
-  requireSignal: boolean,
-  credentials: WorldCredential[] = [config.credential],
-): Failure | null {
+/** Environment, protocol, credential and signal checks. */
+function checkShared(result: any, signal: string): Failure | null {
   if (result.environment !== config.environment) return bad("environment mismatch");
   const responses: any[] = Array.isArray(result.responses) ? result.responses : [];
   if (responses.length === 0) return bad("no responses");
 
-  // Require an accepted credential (normally just the configured one): a 4.0 proof from its issuer.
-  const want = WORLD_CREDENTIALS[credentials[0]];
+  // Require the configured credential: a 4.0 proof from that credential's issuer.
+  const want = WORLD_CREDENTIALS[config.credential];
   // What World App actually returned, safe to show: no proof or nullifier values.
   const got = {
     protocol_version: result.protocol_version,
@@ -135,18 +73,13 @@ function checkShared(
   };
   if (result.protocol_version !== "4.0") return bad(`a World ID 4.0 ${want.label} credential is required`, { got });
   for (const r of responses) {
-    const c = credentials.find((c) => c === r?.identifier);
-    if (!c || Number(r?.issuer_schema_id) !== WORLD_CREDENTIALS[c].issuerSchemaId) {
+    if (r?.identifier !== config.credential || Number(r?.issuer_schema_id) !== want.issuerSchemaId) {
       return bad(`proof is not from a ${want.label} credential`, { got });
     }
   }
   const expectedSignal = BigInt(hashSignal(signal));
   for (const r of responses) {
-    if (typeof r?.signal_hash !== "string") {
-      if (requireSignal) return bad("signal mismatch");
-      continue;
-    }
-    if (BigInt(r.signal_hash) !== expectedSignal) return bad("signal mismatch");
+    if (typeof r?.signal_hash !== "string" || BigInt(r.signal_hash) !== expectedSignal) return bad("signal mismatch");
   }
   return null;
 }

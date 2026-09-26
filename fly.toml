@@ -9,8 +9,6 @@ primary_region = "nrt"
 [env]
   # World ID actions are one-time per person; keep production's separate from local dev ("dev-").
   WLD_ACTION_PREFIX = "prod-"
-  # Temporary: IDKit debug reports for failed World ID requests go to the server log.
-  WLD_DEBUG = "1"
 
 [[mounts]]
   source = "data"

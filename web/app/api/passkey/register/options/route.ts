@@ -1,6 +1,5 @@
 // Passkey registration options, for one of:
 //   - a new account: {signupId, username} after the World ID step
-//   - recovery: {signupId} when World ID matched an existing account
 //   - an extra passkey for the logged-in account: {}
 import { generateRegistrationOptions } from "@simplewebauthn/server";
 import { currentAccount, randomId, USERNAME_RE, usernameTaken } from "@/lib/auth";
@@ -21,19 +20,10 @@ export async function POST(req: Request) {
     const s = await getSignup(body.signupId);
     if (!s || s.state !== "human") return fail(409, "verify with World ID first");
     signupId = s.id;
-    if (s.account_id) {
-      const a = db.get<{ id: number; username: string; webauthn_user_id: string }>(
-        "SELECT id, username, webauthn_user_id FROM accounts WHERE id = ?",
-        [s.account_id],
-      );
-      if (!a) return fail(404, "account not found");
-      [accountId, username, userId] = [a.id, a.username, a.webauthn_user_id];
-    } else {
-      username = String(body.username ?? "");
-      if (!USERNAME_RE.test(username)) return fail(400, "username: 3–20 characters, A–Z 0–9 _");
-      if (await usernameTaken(username)) return fail(409, "username is taken");
-      userId = randomId(16);
-    }
+    username = String(body.username ?? "");
+    if (!USERNAME_RE.test(username)) return fail(400, "username: 3–20 characters, A–Z 0–9 _");
+    if (await usernameTaken(username)) return fail(409, "username is taken");
+    userId = randomId(16);
   } else {
     const me = await currentAccount();
     if (!me) return fail(401, "log in first");

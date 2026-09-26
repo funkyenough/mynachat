@@ -1,4 +1,4 @@
-// Starts a signup (or recovery). The World ID proof comes next, with this id as its signal.
+// Starts a signup. The World ID proof comes next, with this id as its signal.
 import { randomId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { json } from "@/lib/http";

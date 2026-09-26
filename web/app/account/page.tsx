@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AddPasskeyButton, LogoutButton, SetupRecoveryButton } from "@/components/AccountActions";
+import { AddPasskeyButton, LogoutButton } from "@/components/AccountActions";
 import { currentAccount } from "@/lib/auth";
-import { worldConfig } from "@/lib/config";
 import { getT } from "@/lib/lang";
 import { getDb } from "@/lib/db";
 import { fmtTime } from "@/lib/format";
@@ -19,8 +18,6 @@ export default async function AccountPage() {
     "SELECT id, device_type, backed_up, created_at, last_used_at FROM passkeys WHERE account_id = ? ORDER BY created_at",
     [me.id],
   );
-  const recovery = !!db.get<{ world_session_id: string | null }>(
-    "SELECT world_session_id FROM accounts WHERE id = ?", [me.id])?.world_session_id;
   const members = db.all<{ group_id: string; handle: string; method: string; joined_at: number }>(
     "SELECT group_id, handle, method, joined_at FROM members WHERE account_id = ? ORDER BY joined_at",
     [me.id],
@@ -70,39 +67,14 @@ export default async function AccountPage() {
           </li>
         ))}
       </ul>
+      <p className="small muted">
+        {t(
+          "パスキーをすべてなくすとアカウントに戻れません。2台目の端末にもパスキーを追加するか、iCloud キーチェーンや Google パスワードマネージャーで同期されるパスキーを使ってください。",
+          "If you lose every passkey, the account can't be recovered. Add a passkey on a second device, or use one that syncs (iCloud Keychain, Google Password Manager).",
+        )}
+      </p>
       <AddPasskeyButton />
 
-      <h2>{t("復旧", "Recovery")}</h2>
-      {recovery ? (
-        <p className="small">
-          {t(
-            <>✓ World ID で復旧できます。パスキーをなくしても、<a href="/recover">復旧ページ</a>から同じ World ID でアカウントに戻れます。</>,
-            <>✓ Recovery is set up: if you lose your passkeys, the same World ID brings you back via the <a href="/recover">recovery page</a>.</>,
-          )}
-        </p>
-      ) : (
-        <div className="stack">
-          <p className="small muted">
-            {t(
-              "まだ復旧が設定されていません。パスキーをなくすとアカウントに戻れなくなります。",
-              "Recovery isn't set up yet. Without it, losing your passkeys means losing the account.",
-            )}
-          </p>
-          <SetupRecoveryButton world={worldConfig} />
-          {worldConfig.debug && (
-            <div className="card dev stack small">
-              <strong>Session experiments (WLD_DEBUG)</strong>
-              <span className="muted">
-                Each tries creating the recovery session differently. Scan, note what World App shows, and wait up to 2
-                minutes. The result is logged on the server.
-              </span>
-              <SetupRecoveryButton world={worldConfig} variant={{ credential: "proof_of_human", signal: false }} label="A: Proof of Human, no signal" />
-              <SetupRecoveryButton world={worldConfig} variant={{ credential: "selfie", signal: false }} label="B: Selfie Check, no signal" />
-              <SetupRecoveryButton world={worldConfig} variant={{ credential: "selfie", signal: true }} label="C: Selfie Check, with signal" />
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
