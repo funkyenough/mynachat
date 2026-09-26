@@ -3,24 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CredentialRequest,
   IDKitRequestWidget,
   deviceLegacy,
-  mnc,
   orbLegacy,
-  passport,
-  proofOfHuman,
   type IDKitResult,
   type RpContext,
 } from "@worldcoin/idkit";
 import type { WorldCredential } from "@/lib/config";
 
-const PRESETS = {
-  mnc,
-  proof_of_human: proofOfHuman,
-  passport,
-  orb_legacy: orbLegacy,
-  device_legacy: deviceLegacy,
-} satisfies Record<WorldCredential, unknown>;
+/**
+ * World ID 4.0 credentials are requested as a bare constraint: IDKit's presets for them
+ * (mnc(), passport(), proofOfHuman()) carry a 3.0 fallback that World App answers with
+ * an Orb proof. The *_legacy options use the 3.0 presets on purpose.
+ */
+function worldRequest(credential: WorldCredential, signal: string) {
+  if (credential === "orb_legacy") return { preset: orbLegacy({ signal }) };
+  if (credential === "device_legacy") return { preset: deviceLegacy({ signal }) };
+  return { constraints: CredentialRequest(credential, { signal }) };
+}
 
 export type MethodOption = {
   id: string;
@@ -277,7 +278,7 @@ export default function JoinFlow({ group, methods, appId, environment, credentia
           rp_context={rpContext}
           allow_legacy_proofs={credential.endsWith("_legacy")}
           environment={environment}
-          preset={PRESETS[credential]({ signal: sessionId })}
+          {...worldRequest(credential, sessionId)}
           handleVerify={handleVerify}
           onSuccess={() => {
             router.push(`/groups/${group.id}`);
