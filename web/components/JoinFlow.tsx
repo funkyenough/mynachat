@@ -2,7 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IDKitRequestWidget, deviceLegacy, orbLegacy, type IDKitResult, type RpContext } from "@worldcoin/idkit";
+import {
+  IDKitRequestWidget,
+  deviceLegacy,
+  mnc,
+  orbLegacy,
+  passport,
+  proofOfHuman,
+  type IDKitResult,
+  type RpContext,
+} from "@worldcoin/idkit";
+import type { WorldCredential } from "@/lib/config";
+
+const PRESETS = {
+  mnc,
+  proof_of_human: proofOfHuman,
+  passport,
+  orb_legacy: orbLegacy,
+  device_legacy: deviceLegacy,
+} satisfies Record<WorldCredential, unknown>;
 
 export type MethodOption = {
   id: string;
@@ -16,7 +34,7 @@ type Props = {
   methods: MethodOption[];
   appId: `app_${string}`;
   environment: "production" | "staging";
-  verification: "orb" | "device";
+  credential: WorldCredential;
   verifierUrl: string;
   devFakeMyna: boolean;
 };
@@ -45,7 +63,7 @@ async function postJson(url: string, body: unknown) {
   return data;
 }
 
-export default function JoinFlow({ group, methods, appId, environment, verification, verifierUrl, devFakeMyna }: Props) {
+export default function JoinFlow({ group, methods, appId, environment, credential, verifierUrl, devFakeMyna }: Props) {
   const router = useRouter();
   const firstAvailable = methods.find((m) => m.available)?.id ?? "";
   const [method, setMethod] = useState(firstAvailable);
@@ -257,9 +275,9 @@ export default function JoinFlow({ group, methods, appId, environment, verificat
           app_id={appId}
           action={`join-${group.id}`}
           rp_context={rpContext}
-          allow_legacy_proofs={true}
+          allow_legacy_proofs={credential.endsWith("_legacy")}
           environment={environment}
-          preset={(verification === "device" ? deviceLegacy : orbLegacy)({ signal: sessionId })}
+          preset={PRESETS[credential]({ signal: sessionId })}
           handleVerify={handleVerify}
           onSuccess={() => {
             router.push(`/groups/${group.id}`);

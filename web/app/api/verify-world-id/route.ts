@@ -1,7 +1,7 @@
 // Verifies an IDKit result with the World developer portal and creates the group member.
 import { cookies } from "next/headers";
 import { hashSignal } from "@worldcoin/idkit-core/hashing";
-import { config, joinAction } from "@/lib/config";
+import { config, joinAction, WORLD_CREDENTIALS } from "@/lib/config";
 import { getDb, isUniqueViolation } from "@/lib/db";
 import { fail, json, readJson } from "@/lib/http";
 import { cookieName, cookieOptions, newToken, pseudonymFor } from "@/lib/members";
@@ -32,6 +32,17 @@ export async function POST(req: Request) {
   if (result.environment !== config.environment) return fail(400, "environment mismatch");
   const responses: any[] = Array.isArray(result.responses) ? result.responses : [];
   if (responses.length === 0) return fail(400, "no responses");
+  // Require the configured credential: a 4.0 verifiable credential must come back as a
+  // 4.0 proof from that credential's issuer, never a legacy fallback.
+  const want = WORLD_CREDENTIALS[config.credential];
+  if (want.v4) {
+    if (result.protocol_version !== "4.0") return fail(400, `a World ID 4.0 ${want.label} credential is required`);
+    for (const r of responses) {
+      if (r?.identifier !== config.credential || Number(r?.issuer_schema_id) !== want.issuerSchemaId) {
+        return fail(400, `proof is not from a ${want.label} credential`);
+      }
+    }
+  }
   const expectedSignal = BigInt(hashSignal(sessionId));
   for (const r of responses) {
     if (typeof r?.signal_hash !== "string" || BigInt(r.signal_hash) !== expectedSignal) {

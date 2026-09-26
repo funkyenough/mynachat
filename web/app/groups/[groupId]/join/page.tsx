@@ -42,7 +42,7 @@ export default async function JoinPage({ params }: { params: Promise<{ groupId: 
         methods={methods}
         appId={config.appId}
         environment={config.environment}
-        verification={config.verification}
+        credential={config.credential}
         verifierUrl={config.verifierUrl}
         devFakeMyna={config.devFakeMyna}
       />
