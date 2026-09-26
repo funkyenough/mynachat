@@ -8,6 +8,7 @@ export const WORLD_CREDENTIALS = {
   mnc: { issuerSchemaId: 9310, label: "My Number Card" },
   proof_of_human: { issuerSchemaId: 1, label: "Proof of human (Orb)" },
   passport: { issuerSchemaId: 9303, label: "Passport" },
+  selfie: { issuerSchemaId: 11, label: "Selfie Check" },
 } as const;
 export type WorldCredential = keyof typeof WORLD_CREDENTIALS;
 

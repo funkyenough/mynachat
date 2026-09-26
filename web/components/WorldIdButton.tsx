@@ -35,6 +35,8 @@ type SignedRequest = {
   action?: string;
   session?: "create" | "prove";
   sessionId?: `session_${string}`;
+  /** Debug experiments only: credential and whether to attach the signal. */
+  variant?: { credential: "proof_of_human" | "selfie"; signal: boolean };
 };
 
 /** How long a session request may wait for World App before it fails (and, in debug, reports). */
@@ -86,7 +88,7 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
 
   const failed = (code: string, report?: IDKitDebugReport) => {
     if (world.debug) {
-      const payload = { code, purpose: context.purpose, kind: req?.session ?? "request", report: redact(report ?? null) };
+      const payload = { code, purpose: context.purpose, kind: req?.session ?? "request", variant: req?.variant, report: redact(report ?? null) };
       console.error("[world-id debug]", payload);
       void api("/api/debug/world-id", payload).catch(() => {});
     }
@@ -105,7 +107,10 @@ export default function WorldIdButton({ world, context, label, disabled, classNa
           app_id={world.appId}
           rp_context={req.rpContext}
           environment={world.environment}
-          constraints={CredentialRequest(world.credential, { signal: req.signal })}
+          constraints={CredentialRequest(
+            req.variant?.credential ?? world.credential,
+            req.variant && !req.variant.signal ? {} : { signal: req.signal },
+          )}
           existing_session_id={req.session === "prove" ? req.sessionId : undefined}
           polling={{ timeout: SESSION_TIMEOUT_MS }}
           handleVerify={verify}

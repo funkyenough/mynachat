@@ -7,7 +7,7 @@
 //   link to a returning person. Used for account recovery.
 import { hashSignal } from "@worldcoin/idkit-core/hashing";
 import { signRequest } from "@worldcoin/idkit-core/signing";
-import { config, WORLD_CREDENTIALS } from "./config";
+import { config, WORLD_CREDENTIALS, type WorldCredential } from "./config";
 import { getDb, isUniqueViolation } from "./db";
 
 type Failure = { ok: false; status: number; error: string; extra?: Record<string, unknown> };
@@ -78,7 +78,9 @@ export async function verifyWorldSession(result: any, signal: string, expectedSe
     return bad("this World ID is not the one linked to that account", undefined, 403);
   }
   // Session responses carry a signal hash only when World App includes one; check it if present.
-  const shared = checkShared(result, signal, false);
+  // WLD_DEBUG: session experiments may also use Selfie Check (the credential World documents for sessions).
+  const creds: WorldCredential[] = process.env.WLD_DEBUG === "1" ? [config.credential, "selfie"] : [config.credential];
+  const shared = checkShared(result, signal, false, creds);
   if (shared) return shared;
   const nullifiers: string[] = [];
   for (const r of result.responses) {
@@ -114,13 +116,18 @@ export async function verifyWorldSession(result: any, signal: string, expectedSe
 }
 
 /** Environment, protocol, credential and signal checks shared by both proof kinds. */
-function checkShared(result: any, signal: string, requireSignal: boolean): Failure | null {
+function checkShared(
+  result: any,
+  signal: string,
+  requireSignal: boolean,
+  credentials: WorldCredential[] = [config.credential],
+): Failure | null {
   if (result.environment !== config.environment) return bad("environment mismatch");
   const responses: any[] = Array.isArray(result.responses) ? result.responses : [];
   if (responses.length === 0) return bad("no responses");
 
-  // Require the configured credential: a 4.0 proof from that credential's issuer.
-  const want = WORLD_CREDENTIALS[config.credential];
+  // Require an accepted credential (normally just the configured one): a 4.0 proof from its issuer.
+  const want = WORLD_CREDENTIALS[credentials[0]];
   // What World App actually returned, safe to show: no proof or nullifier values.
   const got = {
     protocol_version: result.protocol_version,
@@ -128,7 +135,8 @@ function checkShared(result: any, signal: string, requireSignal: boolean): Failu
   };
   if (result.protocol_version !== "4.0") return bad(`a World ID 4.0 ${want.label} credential is required`, { got });
   for (const r of responses) {
-    if (r?.identifier !== config.credential || Number(r?.issuer_schema_id) !== want.issuerSchemaId) {
+    const c = credentials.find((c) => c === r?.identifier);
+    if (!c || Number(r?.issuer_schema_id) !== WORLD_CREDENTIALS[c].issuerSchemaId) {
       return bad(`proof is not from a ${want.label} credential`, { got });
     }
   }

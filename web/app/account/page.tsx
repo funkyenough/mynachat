@@ -89,6 +89,18 @@ export default async function AccountPage() {
             )}
           </p>
           <SetupRecoveryButton world={worldConfig} />
+          {worldConfig.debug && (
+            <div className="card dev stack small">
+              <strong>Session experiments (WLD_DEBUG)</strong>
+              <span className="muted">
+                Each tries creating the recovery session differently. Scan, note what World App shows, and wait up to 2
+                minutes. The result is logged on the server.
+              </span>
+              <SetupRecoveryButton world={worldConfig} variant={{ credential: "proof_of_human", signal: false }} label="A: Proof of Human, no signal" />
+              <SetupRecoveryButton world={worldConfig} variant={{ credential: "selfie", signal: false }} label="B: Selfie Check, no signal" />
+              <SetupRecoveryButton world={worldConfig} variant={{ credential: "selfie", signal: true }} label="C: Selfie Check, with signal" />
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -12,7 +12,13 @@ import { fail, json, readJson } from "@/lib/http";
 import { getSignup } from "@/lib/signups";
 import { rpContext } from "@/lib/worldid";
 
-type Req = { action?: string; signal: string; session?: "create" | "prove"; sessionId?: string };
+type Req = {
+  action?: string;
+  signal: string;
+  session?: "create" | "prove";
+  sessionId?: string;
+  variant?: { credential: "proof_of_human" | "selfie"; signal: boolean };
+};
 
 export async function POST(req: Request) {
   const body = await readJson(req);
@@ -31,6 +37,10 @@ export async function POST(req: Request) {
         "SELECT world_session_id FROM accounts WHERE id = ?", [me.id]);
       if (has?.world_session_id) return fail(409, "recovery is already set up for this account");
       r = { signal: `link:${me.id}`, session: "create" };
+      // WLD_DEBUG experiments: which credential, and whether to attach the signal.
+      if (process.env.WLD_DEBUG === "1" && body.variant) {
+        r.variant = { credential: body.variant.credential === "selfie" ? "selfie" : "proof_of_human", signal: !!body.variant.signal };
+      }
       break;
     }
     case "recover": {
@@ -55,7 +65,9 @@ export async function POST(req: Request) {
     default:
       return fail(400, "unknown purpose");
   }
-  if (r.session) console.info(`[world-id] session ${r.session} requested (${body.purpose})`);
+  if (r.session) {
+    console.info(`[world-id] session ${r.session} requested (${body.purpose})${r.variant ? ` variant=${JSON.stringify(r.variant)}` : ""}`);
+  }
   try {
     return json({ rpContext: rpContext(r.action), ...r });
   } catch (e) {
