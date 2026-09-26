@@ -1,0 +1,65 @@
+:root {
+  --bg: #fafaf8;
+  --fg: #1c1c1a;
+  --muted: #6b6b66;
+  --line: #e3e2dc;
+  --card: #ffffff;
+  --accent: #1f6f5c;
+  --accent-fg: #ffffff;
+  --danger: #b3261e;
+  --ok: #1f6f5c;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615;
+    --fg: #ecebe6;
+    --muted: #9c9b94;
+    --line: #2f2f2c;
+    --card: #1e1e1c;
+    --accent: #5cc3a6;
+    --accent-fg: #0d1f1a;
+    --danger: #f2877f;
+    --ok: #5cc3a6;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+header.site { border-bottom: 1px solid var(--line); }
+header.site > div { max-width: 720px; margin: 0 auto; padding: 14px 16px; display: flex; justify-content: space-between; align-items: baseline; }
+header.site strong { font-size: 17px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+h2 { font-size: 18px; margin: 28px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.stack > * + * { margin-top: 10px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button, .button {
+  font: inherit; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg);
+}
+button.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+input[type="text"], textarea {
+  font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: var(--fg);
+}
+textarea { min-height: 90px; resize: vertical; }
+label.option { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+label.option.disabled { opacity: 0.55; cursor: not-allowed; }
+.error { color: var(--danger); }
+.ok { color: var(--ok); }
+.steps { list-style: none; padding: 0; margin: 0; }
+.steps li { padding: 4px 0; }
+.pseudo { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); }
+pre.body { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 6px 0 0; }
+.dev { border-style: dashed; }

@@ -1,0 +1,25 @@
+{
+  "name": "mynamedical-web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "@worldcoin/idkit": "4.3.0",
+    "@worldcoin/idkit-core": "4.3.0",
+    "next": "~15.5.26",
+    "react": "~19.1.9",
+    "react-dom": "~19.1.9",
+    "sql.js": "^1.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/sql.js": "^1.4.11",
+    "typescript": "^5.9.3"
+  }
+}
