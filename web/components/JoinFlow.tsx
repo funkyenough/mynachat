@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IDKitRequestWidget, orbLegacy, type IDKitResult, type RpContext } from "@worldcoin/idkit";
+import { IDKitRequestWidget, deviceLegacy, orbLegacy, type IDKitResult, type RpContext } from "@worldcoin/idkit";
 
 export type MethodOption = {
   id: string;
@@ -16,6 +16,7 @@ type Props = {
   methods: MethodOption[];
   appId: `app_${string}`;
   environment: "production" | "staging";
+  verification: "orb" | "device";
   verifierUrl: string;
   devFakeMyna: boolean;
 };
@@ -44,7 +45,7 @@ async function postJson(url: string, body: unknown) {
   return data;
 }
 
-export default function JoinFlow({ group, methods, appId, environment, verifierUrl, devFakeMyna }: Props) {
+export default function JoinFlow({ group, methods, appId, environment, verification, verifierUrl, devFakeMyna }: Props) {
   const router = useRouter();
   const firstAvailable = methods.find((m) => m.available)?.id ?? "";
   const [method, setMethod] = useState(firstAvailable);
@@ -258,7 +259,7 @@ export default function JoinFlow({ group, methods, appId, environment, verifierU
           rp_context={rpContext}
           allow_legacy_proofs={true}
           environment={environment}
-          preset={orbLegacy({ signal: sessionId })}
+          preset={(verification === "device" ? deviceLegacy : orbLegacy)({ signal: sessionId })}
           handleVerify={handleVerify}
           onSuccess={() => {
             router.push(`/groups/${group.id}`);
