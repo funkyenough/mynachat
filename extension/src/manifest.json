@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Myna Group Prover",
+  "version": "0.1.0",
+  "description": "Proves Myna Portal data to the group verifier with TLSNotary (MPC-TLS) without revealing your records.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:3000/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": ["cookies", "offscreen"],
+  "host_permissions": ["https://myna.go.jp/*", "http://localhost:3000/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "cross_origin_embedder_policy": { "value": "require-corp" },
+  "cross_origin_opener_policy": { "value": "same-origin" }
+}

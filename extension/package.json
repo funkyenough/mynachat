@@ -1,0 +1,13 @@
+{
+  "name": "myna-prover-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome MV3 extension: TLSNotary prover for Myna Portal group membership",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "tlsn-wasm": "0.1.0-alpha.15"
+  }
+}

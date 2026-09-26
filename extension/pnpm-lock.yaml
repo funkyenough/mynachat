@@ -1,0 +1,22 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      tlsn-wasm:
+        specifier: 0.1.0-alpha.15
+        version: 0.1.0-alpha.15
+
+packages:
+
+  tlsn-wasm@0.1.0-alpha.15:
+    resolution: {integrity: sha512-6NwgWlc56UADOOt5+zwbb+XaSVSS8nz01H5lnG2sAvSUjapNM4mTWHedeHQn1eWJHoIQD3iVt1o7lPhk1fXMoA==}
+
+snapshots:
+
+  tlsn-wasm@0.1.0-alpha.15: {}
