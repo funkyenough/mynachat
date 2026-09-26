@@ -50,7 +50,7 @@ header.site .site-nav { display: flex; gap: 16px; margin-left: 14px; }
 header.site .site-nav a { color: var(--muted); font-weight: 600; }
 header.site .site-nav a:hover { color: var(--fg); text-decoration: none; }
 header.site .spacer { flex: 1; }
-header.site strong { font-size: 17px; }
+header.site strong { font-size: 18px; font-family: var(--font-display-latin), system-ui, sans-serif; letter-spacing: -0.01em; }
 h1 { font-size: 24px; margin: 8px 0 4px; }
 h2 { font-size: 18px; margin: 28px 0 8px; }
 .muted { color: var(--muted); }

@@ -1,0 +1,4 @@
+/* How it works: the proof sequence diagram (components/ProofSequence.tsx). */
+.seq { margin: 8px 0 0; padding: 20px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); overflow-x: auto; }
+.seq-svg { min-height: 420px; }
+.seq-svg svg { display: block; margin: 0 auto; min-width: 640px; height: auto; }

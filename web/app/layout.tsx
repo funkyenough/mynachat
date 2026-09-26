@@ -5,6 +5,7 @@ import LangProvider from "@/components/LangProvider";
 import LangToggle from "@/components/LangToggle";
 import { currentAccount } from "@/lib/auth";
 import { getLang } from "@/lib/lang";
+import { headingFonts } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const t = NAV[lang];
   return (
     <html lang={lang}>
-      <body>
+      <body className={headingFonts}>
         <header className="site">
           <div>
             <Link href="/" className="brand">

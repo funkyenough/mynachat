@@ -9,8 +9,8 @@ import type { Lang } from "@/lib/i18n";
 type Result = { code: string; kind: number; ja: string; en: string | null; groups: number };
 
 const TEXT = {
-  ja: { placeholder: "病名やICD-10コードで検索", eg: "例", none: "該当する病名はありません", badge: "コミュニティあり", examples: ["花粉症", "潰瘍性大腸炎", "脊髄性筋萎縮症", "クローン病", "片頭痛"] },
-  en: { placeholder: "Search a condition or ICD-10 code", eg: "e.g.", none: "No matches in ICD-10", badge: "Community", examples: ["hay fever", "ulcerative colitis", "SMA", "Crohn", "migraine"] },
+  ja: { placeholder: "病名やICD-10コードで検索", eg: "例", none: "該当する病名はありません", badge: "コミュニティあり", examples: ["花粉症", "片頭痛", "潰瘍性大腸炎"] },
+  en: { placeholder: "Search a condition or ICD-10 code", eg: "e.g.", none: "No matches in ICD-10", badge: "Community", examples: ["hay fever", "migraine", "ulcerative colitis"] },
 };
 
 /** Search box over all of ICD-10 (codes, Japanese and English names), in the page language. */

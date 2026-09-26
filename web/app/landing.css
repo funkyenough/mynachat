@@ -9,7 +9,7 @@ main:has(> .landing) { max-width: none; padding: 0; }
   .landing { --band: #18221f; --deep: #123f35; }
 }
 
-.landing h1, .landing h2, .landing h3 { font-family: var(--font-display), "Hiragino Sans", system-ui, sans-serif; }
+.landing h1, .landing h2, .landing h3 { font-family: var(--font-display-latin), var(--font-display), "Hiragino Sans", system-ui, sans-serif; }
 .l-inner { max-width: calc(var(--page) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
 .l-section { padding: 72px var(--gutter) 8px; }
 .landing h2 { font-size: clamp(24px, 3.2vw, 32px); line-height: 1.3; margin: 0 0 32px; font-weight: 900; }
@@ -27,6 +27,15 @@ main:has(> .landing) { max-width: none; padding: 0; }
 .landing[lang="en"] .l-lede { line-height: 1.65; }
 .l-search { margin-top: 32px; }
 
+/* --- the problem: why patient groups need proof --- */
+.l-problem { padding-top: 16px; padding-bottom: 80px; }
+.l-problem-intro { font-size: 17px; line-height: 1.85; max-width: 40em; margin: -12px 0 32px; }
+.landing[lang="en"] .l-problem-intro { line-height: 1.65; }
+.l-tradeoff { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.l-tradeoff > div { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 22px 24px; }
+.l-tradeoff h3 { font-size: 18px; margin: 0 0 8px; }
+.l-tradeoff p { margin: 0; font-size: 15px; line-height: 1.75; color: var(--muted); }
+
 /* --- learns / never learns --- */
 .l-band { background: var(--band); padding: 64px 0; }
 .ledger { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
@@ -39,26 +48,6 @@ main:has(> .landing) { max-width: none; padding: 0; }
 .ledger div:first-child li::before { content: "✓"; color: var(--accent); }
 .ledger div:last-child li::before { content: "✕"; color: var(--muted); }
 
-/* --- steps: a real sequence, so numbered --- */
-.l-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; counter-reset: step; }
-.l-steps li { counter-increment: step; position: relative; padding-top: 56px; }
-.l-steps li::before {
-  content: counter(step); position: absolute; top: 0; left: 0; width: 38px; height: 38px; border-radius: 50%;
-  display: grid; place-items: center; background: var(--accent); color: var(--accent-fg);
-  font: 700 17px/1 var(--font-display), system-ui, sans-serif;
-}
-.l-steps li:not(:last-child)::after { content: ""; position: absolute; top: 19px; left: 48px; right: -18px; height: 2px; background: var(--line); }
-.l-steps h3 { font-size: 18px; margin: 0 0 8px; }
-.l-steps p { margin: 0; font-size: 14.5px; line-height: 1.75; }
-
-.l-more { margin: 8px 0 0; font-weight: 600; }
-
-/* --- principles --- */
-.l-principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px 40px; }
-.l-principles > div { border-top: 2px solid var(--fg); padding-top: 16px; }
-.l-principles h3 { font-size: 18px; margin: 0 0 8px; }
-.l-principles p { margin: 0; font-size: 14.5px; line-height: 1.75; }
-
 /* --- groups --- */
 .l-groups ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
 .l-groups li a {
@@ -68,35 +57,12 @@ main:has(> .landing) { max-width: none; padding: 0; }
 .l-groups li a:hover { border-color: var(--accent); text-decoration: none; }
 .l-note { margin-top: 18px; font-size: 14.5px; }
 
-/* --- faq --- */
-.l-faq { max-width: 760px; border-top: 1px solid var(--line); }
-.l-faq details { border-bottom: 1px solid var(--line); }
-.l-faq summary { cursor: pointer; list-style: none; padding: 18px 40px 18px 0; position: relative; font-weight: 700; font-size: 16px; }
-.l-faq summary::-webkit-details-marker { display: none; }
-.l-faq summary::after { content: "+"; position: absolute; right: 6px; top: 14px; font-size: 24px; font-weight: 400; color: var(--accent); transition: transform 0.2s; }
-.l-faq details[open] summary::after { transform: rotate(45deg); }
-.l-faq p { margin: 0 0 20px; font-size: 15px; line-height: 1.8; max-width: 44em; }
-
-/* --- closing --- */
-.l-end { background: var(--deep); color: #f3f7f5; padding: 72px 0; margin-top: 80px; }
-.l-end h2 { color: #fff; }
-.l-end .row { gap: 20px; }
-.l-cta { background: #fff !important; color: var(--deep) !important; border-color: #fff !important; font-weight: 700; padding: 12px 22px !important; font-size: 16px; }
-.l-login { color: #d8efe7; }
-
 .landing :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (max-width: 900px) {
   .l-hero { grid-template-columns: 1fr; gap: 40px; padding-top: 40px; }
-  .l-steps { grid-template-columns: 1fr 1fr; }
-  .l-steps li:nth-child(2)::after { display: none; }
-  .l-principles { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 600px) {
   .l-section { padding-top: 56px; }
-  .ledger, .l-steps, .l-principles { grid-template-columns: 1fr; gap: 28px; }
-  .l-steps li::after { display: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .l-faq summary::after { transition: none; }
+  .ledger, .l-tradeoff { grid-template-columns: 1fr; gap: 28px; }
 }
