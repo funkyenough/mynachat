@@ -16,8 +16,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       <p className="muted small">
         すでにアカウントがありますか？ <Link href={`/login?next=${encodeURIComponent(next)}`}>ログイン / Log in</Link>
         <br />
-        パスキーをなくした場合も、ここで World ID を使えば同じアカウントを取り戻せます。 / Lost your passkey? Verifying with World
-        ID here recovers the same account.
+        パスキーをなくした場合は / Lost your passkey?{" "}
+        <Link href={`/recover?next=${encodeURIComponent(next)}`}>World ID で復旧 / Recover with World ID</Link>
       </p>
       <SignupFlow world={worldConfig} next={next} devFakeWorld={process.env.DEV_FAKE_WORLD_ID === "1"} />
     </div>

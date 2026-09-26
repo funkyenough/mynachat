@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { startRegistration } from "@simplewebauthn/browser";
+import WorldIdButton from "./WorldIdButton";
 import { api, errMsg } from "@/lib/api";
+import type { WorldConfig } from "@/lib/world-config";
 
 export function AddPasskeyButton() {
   const router = useRouter();
@@ -39,5 +41,26 @@ export function LogoutButton({ className }: { className?: string }) {
     >
       ログアウト / Log out
     </button>
+  );
+}
+
+/** Links a World ID session to an account created before signup saved one. */
+export function SetupRecoveryButton({ world }: { world: WorldConfig }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <span className="row">
+      <WorldIdButton
+        world={world}
+        context={{ purpose: "link-session" }}
+        label="World ID で復旧を設定 / Set up recovery with World ID"
+        onVerify={async (idkitResult) => {
+          await api("/api/account/world-session", { idkitResult });
+        }}
+        onSuccess={() => router.refresh()}
+        onError={setMsg}
+      />
+      {msg && <span className="error small">{msg}</span>}
+    </span>
   );
 }

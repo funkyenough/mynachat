@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         はじめての方 / New here? <Link href={`/signup?next=${encodeURIComponent(next)}`}>アカウント作成 / Create an account</Link>
         <br />
         <span className="muted">パスキーをなくした / Lost your passkey?</span>{" "}
-        <Link href={`/signup?next=${encodeURIComponent(next)}`}>World ID で復旧 / Recover with World ID</Link>
+        <Link href={`/recover?next=${encodeURIComponent(next)}`}>World ID で復旧 / Recover with World ID</Link>
       </p>
     </div>
   );

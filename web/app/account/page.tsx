@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AddPasskeyButton, LogoutButton } from "@/components/AccountActions";
+import { AddPasskeyButton, LogoutButton, SetupRecoveryButton } from "@/components/AccountActions";
 import { currentAccount } from "@/lib/auth";
+import { worldConfig } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { fmtTime } from "@/lib/format";
 import { getGroup, getMethod } from "@/lib/groups";
@@ -16,6 +17,8 @@ export default async function AccountPage() {
     "SELECT id, device_type, backed_up, created_at, last_used_at FROM passkeys WHERE account_id = ? ORDER BY created_at",
     [me.id],
   );
+  const recovery = !!db.get<{ world_session_id: string | null }>(
+    "SELECT world_session_id FROM accounts WHERE id = ?", [me.id])?.world_session_id;
   const members = db.all<{ group_id: string; handle: string; method: string; joined_at: number }>(
     "SELECT group_id, handle, method, joined_at FROM members WHERE account_id = ? ORDER BY joined_at",
     [me.id],
@@ -68,6 +71,26 @@ export default async function AccountPage() {
         ))}
       </ul>
       <AddPasskeyButton />
+
+      <h2>復旧 / Recovery</h2>
+      {recovery ? (
+        <p className="small">
+          ✓ World ID で復旧できます。パスキーをなくしても、<a href="/recover">復旧ページ</a>から同じ World ID でアカウントに戻れます。
+          <br />
+          <span className="muted">
+            Recovery is set up: if you lose your passkeys, the same World ID brings you back via the recovery page.
+          </span>
+        </p>
+      ) : (
+        <div className="stack">
+          <p className="small muted">
+            まだ復旧が設定されていません。パスキーをなくすとアカウントに戻れなくなります。
+            <br />
+            Recovery isn&apos;t set up yet. Without it, losing your passkeys means losing the account.
+          </p>
+          <SetupRecoveryButton world={worldConfig} />
+        </div>
+      )}
     </div>
   );
 }

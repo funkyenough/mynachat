@@ -122,9 +122,22 @@ CREATE TABLE IF NOT EXISTS waitlist (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (icd_code, account_id)
 );
+-- Session proofs are one-time too: remember accepted session nullifiers (replay protection).
+CREATE TABLE IF NOT EXISTS world_session_nullifiers (
+  nullifier  TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS threads_group ON threads(group_id, created_at);
 CREATE INDEX IF NOT EXISTS replies_thread ON replies(thread_id, created_at);
 `;
+
+/** Columns added after a table first shipped: [table, column, definition]. */
+const ADDED_COLUMNS: [string, string, string][] = [
+  // World ID session (session_...) for account recovery. World ID 4.0 nullifiers are one-time,
+  // so a returning person is recognised by proving this saved session, not the "account" action.
+  ["accounts", "world_session_id", "TEXT"],
+  ["signups", "world_session_id", "TEXT"],
+];
 
 /** Tables from before accounts existed (per-group World ID members). Local dev data only. */
 const PRE_ACCOUNT_TABLES = ["replies", "threads", "auth_tokens", "members", "sessions"];
@@ -200,6 +213,10 @@ async function open(): Promise<Db> {
   }
   raw.run("PRAGMA foreign_keys = ON");
   raw.exec(SCHEMA);
+  for (const [table, column, def] of ADDED_COLUMNS) {
+    const have = raw.exec(`SELECT name FROM pragma_table_info('${table}')`)[0]?.values.flat() ?? [];
+    if (!have.includes(column)) raw.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  }
   return new Db(raw);
 }
 

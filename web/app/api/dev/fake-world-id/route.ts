@@ -1,6 +1,7 @@
 // DEV ONLY (DEV_FAKE_WORLD_ID=1): stand in for World App with a random nullifier, so the
 // flows can be tried without it. Every call is a "new human".
-//   {purpose:"account", signupId}          completes the World ID step of signup
+//   {purpose:"account", signupId}          completes both World ID steps of signup
+//   {purpose:"recover", recoveryId}        passes the World ID step of account recovery
 //   {purpose:"poll", pollId, optionId}     casts a vote
 import crypto from "node:crypto";
 import { currentMember } from "@/lib/auth";
@@ -15,9 +16,17 @@ export async function POST(req: Request) {
   const db = await getDb();
   if (body?.purpose === "account") {
     const s = await getSignup(body.signupId);
-    if (!s || s.state !== "pending") return fail(409, "signup expired, start again");
-    db.run("UPDATE signups SET state = 'human', world_nullifier = ? WHERE id = ?", [nullifier, s.id]);
-    return json({ existing: null });
+    if (!s || s.state !== "pending" || s.account_id) return fail(409, "signup expired, start again");
+    // Stands in for both World ID steps of signup: the "account" proof and the recovery session.
+    const session = `session_${crypto.randomBytes(16).toString("hex")}`;
+    db.run("UPDATE signups SET state = 'human', world_nullifier = ?, world_session_id = ? WHERE id = ?", [nullifier, session, s.id]);
+    return json({ ok: true });
+  }
+  if (body?.purpose === "recover") {
+    const s = await getSignup(body.recoveryId);
+    if (!s || s.state !== "pending" || !s.account_id) return fail(409, "recovery expired, start again");
+    db.run("UPDATE signups SET state = 'human' WHERE id = ?", [s.id]);
+    return json({ ok: true });
   }
   if (body?.purpose === "poll") {
     const opt = db.get<{ group_id: string }>(

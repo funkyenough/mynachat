@@ -6,6 +6,7 @@ export type Signup = {
   state: "pending" | "human" | "done";
   world_nullifier: string | null;
   account_id: number | null;
+  world_session_id: string | null;
   created_at: number;
 };
 

@@ -5,7 +5,6 @@ myna_data
 **/.env.*.local
 web/data
 verifier/audit
-docs/submission
 
 # Build outputs and dependencies (rebuilt inside the image).
 **/node_modules
