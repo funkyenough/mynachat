@@ -29,8 +29,6 @@ export async function POST(req: Request) {
       if (!a) return fail(404, "account not found");
       [accountId, username, userId] = [a.id, a.username, a.webauthn_user_id];
     } else {
-      // New accounts must have a World ID session saved, so they can be recovered later.
-      if (!s.world_session_id) return fail(409, "set up World ID recovery first");
       username = String(body.username ?? "");
       if (!USERNAME_RE.test(username)) return fail(400, "username: 3–20 characters, A–Z 0–9 _");
       if (await usernameTaken(username)) return fail(409, "username is taken");

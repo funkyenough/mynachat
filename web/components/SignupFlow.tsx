@@ -10,14 +10,12 @@ import { api, errMsg } from "@/lib/api";
 import type { WorldConfig } from "@/lib/world-config";
 
 type Props = { world: WorldConfig; next: string; devFakeWorld: boolean };
-type Phase = "human" | "session" | "passkey";
+type Phase = "human" | "passkey";
 
 /**
- * Signup, three steps:
- *  1. World ID uniqueness proof ("account"): one account per human. World App refuses a
- *     second proof for the same person (nullifier_replayed), so that means "already signed up".
- *  2. World ID session: saved on the account, so the same person can recover it later.
- *  3. Username and passkey.
+ * Signup: a World ID uniqueness proof ("account": one account per human), then a username and
+ * a passkey. Recovery (a World ID session saved on the account) is set up separately and
+ * optionally from the account page.
  */
 export default function SignupFlow({ world, next, devFakeWorld }: Props) {
   const router = useRouter();
@@ -75,7 +73,7 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
       router.refresh();
     } catch (err) {
       const m = errMsg(err);
-      const expired = /expired|World ID first|recovery first/.test(m);
+      const expired = /expired|World ID first/.test(m);
       setError(expired ? `${m}. もう一度 World ID から / Start again from World ID.` : m);
       if (expired) void restart();
     } finally {
@@ -84,7 +82,7 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
   }
 
   const step = (p: Phase) => {
-    const order: Phase[] = ["human", "session", "passkey"];
+    const order: Phase[] = ["human", "passkey"];
     const d = order.indexOf(p) - order.indexOf(phase);
     return d < 0 ? "done" : d === 0 ? "current" : "todo";
   };
@@ -111,7 +109,6 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
       <Steps
         steps={[
           { label: "本人確認 / Verify with World ID", state: step("human") },
-          { label: "復旧の設定 / Recovery", state: step("session") },
           { label: "ユーザー名とパスキー / Username & passkey", state: step("passkey") },
         ]}
       />
@@ -134,7 +131,7 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
               onVerify={async (idkitResult) => {
                 await api("/api/signup/world-id", { signupId, idkitResult });
               }}
-              onSuccess={() => setPhase("session")}
+              onSuccess={() => setPhase("passkey")}
               onError={onWorldError}
             />
             {devFakeWorld && (
@@ -151,33 +148,9 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
         </section>
       )}
 
-      {phase === "session" && (
-        <section className="card stack">
-          <h2 className="flush">2. 復旧の設定 / Set up recovery</h2>
-          <p className="small muted">
-            もう一度 World App で確認してください。パスキーをなくしたり端末を変えたりしたときに、同じ World ID でこのアカウントに戻れるようになります。
-            <br />
-            Confirm once more in World App. If you lose your passkey or change devices, the same World ID brings you back to
-            this account.
-          </p>
-          <div className="row">
-            <WorldIdButton
-              world={world}
-              context={{ purpose: "account-session", signupId }}
-              label="World ID で設定 / Set up with World ID"
-              onVerify={async (idkitResult) => {
-                await api("/api/signup/world-session", { signupId, idkitResult });
-              }}
-              onSuccess={() => setPhase("passkey")}
-              onError={setError}
-            />
-          </div>
-        </section>
-      )}
-
       {phase === "passkey" && (
         <form className="card stack" onSubmit={createPasskey}>
-          <h2 className="flush">3. ユーザー名とパスキー / Username & passkey</h2>
+          <h2 className="flush">2. ユーザー名とパスキー / Username & passkey</h2>
           <label className="field">
             <span>ユーザー名 / Username</span>
             <input
@@ -194,10 +167,11 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
             </span>
           </label>
           <p className="small muted">
-            ユーザー名はログインと復旧に使い、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。
+            ユーザー名はログインと復旧に使い、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。登録後、アカウントページで World ID による復旧を設定できます。
             <br />
             Your username is for logging in and recovery, and is never shown on boards. Each group gets its own display name,
-            so groups can&apos;t be linked to each other.
+            so groups can&apos;t be linked to each other. After signing up, you can set up World ID recovery on your account
+            page.
           </p>
           <div className="row">
             <button type="submit" disabled={busy || !available?.ok}>

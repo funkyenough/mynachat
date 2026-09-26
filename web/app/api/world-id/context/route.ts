@@ -3,7 +3,6 @@
 //   {purpose:"account", signupId}         -> action "account", signal = signupId
 //   {purpose:"poll", pollId, optionId}    -> action "poll-<id>", signal = "vote:<optionId>"
 // Session proofs (no action; re-provable, for recognising a returning person):
-//   {purpose:"account-session", signupId} -> create the session saved on the new account
 //   {purpose:"link-session"}              -> create a session for the logged-in account (older accounts)
 //   {purpose:"recover", recoveryId}       -> prove the account's saved session
 import { currentAccount, currentMember } from "@/lib/auth";
@@ -23,12 +22,6 @@ export async function POST(req: Request) {
       const s = await getSignup(body.signupId);
       if (!s || s.state !== "pending" || s.account_id) return fail(409, "signup expired, start again");
       r = { action: ACCOUNT_ACTION, signal: s.id };
-      break;
-    }
-    case "account-session": {
-      const s = await getSignup(body.signupId);
-      if (!s || s.state !== "human" || s.account_id || s.world_session_id) return fail(409, "signup expired, start again");
-      r = { signal: `session:${s.id}`, session: "create" };
       break;
     }
     case "link-session": {
