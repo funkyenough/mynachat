@@ -34,7 +34,7 @@ use tokio_util::compat::FuturesAsyncReadCompatExt;
 use tracing::{error, info, warn};
 use ws_stream_tungstenite::WsStream;
 
-use myna_verifier::{disclosure, eligibility, myna};
+use myna_verifier::{audit, disclosure, eligibility, myna};
 
 type Ws = WebSocketStream<TokioAdapter<TcpStream>>;
 
@@ -45,6 +45,7 @@ struct Config {
     secret: String,
     max_sent_data: usize,
     max_recv_data: usize,
+    audit_dir: std::path::PathBuf,
 }
 
 impl Config {
@@ -56,6 +57,7 @@ impl Config {
             secret: var("VERIFIER_SHARED_SECRET", ""),
             max_sent_data: var("MAX_SENT_DATA", "4096").parse().expect("MAX_SENT_DATA"),
             max_recv_data: var("MAX_RECV_DATA", "32768").parse().expect("MAX_RECV_DATA"),
+            audit_dir: var("AUDIT_DIR", "audit").into(),
         }
     }
 }
@@ -88,6 +90,8 @@ impl Results {
 
 struct App {
     cfg: Config,
+    /// Server-to-prover bytes captured by the most recent relay (first 16 KiB).
+    last_relay: Mutex<Option<Arc<std::sync::Mutex<Vec<u8>>>>>,
     results: Results,
     http: reqwest::Client,
 }
@@ -112,7 +116,12 @@ async fn main() -> Result<()> {
         cfg.listen, cfg.max_sent_data, cfg.max_recv_data
     );
 
-    let app = Arc::new(App { cfg, results: Results::default(), http: reqwest::Client::new() });
+    let app = Arc::new(App {
+        cfg,
+        last_relay: Mutex::new(None),
+        results: Results::default(),
+        http: reqwest::Client::new(),
+    });
     loop {
         let (tcp, peer) = listener.accept().await?;
         let app = app.clone();
@@ -150,7 +159,7 @@ async fn handle_conn(app: Arc<App>, tcp: TcpStream) -> Result<()> {
     let get = |k: &str| q.get(k).cloned().unwrap_or_default();
 
     match url.path() {
-        "/relay" => relay(ws, &get("target")).await,
+        "/relay" => relay(&app, ws, &get("target")).await,
         "/result" => send_result(&app, ws, &get("sessionId")).await,
         "/prove" => {
             let (session_id, group_id, method) = (get("sessionId"), get("groupId"), get("method"));
@@ -159,9 +168,11 @@ async fn handle_conn(app: Arc<App>, tcp: TcpStream) -> Result<()> {
             }
             info!(%session_id, %group_id, %method, "prove session started");
             let started = std::time::Instant::now();
+            let mut audit = audit::VerifierAudit::new(&session_id, &group_id, &method, now_rfc3339());
+            audit.event("prove session started");
             let result = tokio::time::timeout(
                 Duration::from_secs(300),
-                prove(&app.cfg, ws, &group_id, &method),
+                prove(&app, ws, &group_id, &method, &mut audit),
             )
             .await
             .unwrap_or_else(|_| Err(anyhow!("timed out")));
@@ -185,8 +196,15 @@ async fn handle_conn(app: Arc<App>, tcp: TcpStream) -> Result<()> {
             };
             // Only successful verifications are reported to the web app; failures
             // are visible to the extension via /result.
+            audit.error = outcome.error.clone();
+            audit.outcome = serde_json::to_value(&outcome).ok();
             if outcome.error.is_none() {
-                report(&app, &outcome).await;
+                audit.report = Some(report(&app, &outcome).await);
+                audit.event("reported to web app");
+            }
+            match audit.write(&app.cfg.audit_dir) {
+                Ok(path) => info!(path = %path.display(), "audit written"),
+                Err(e) => warn!("could not write audit: {e}"),
             }
             app.results.channel(&session_id).await.send_replace(Some(outcome));
             Ok(())
@@ -197,7 +215,14 @@ async fn handle_conn(app: Arc<App>, tcp: TcpStream) -> Result<()> {
 
 /// Runs the verifier side of MPC-TLS, checks the server identity and evaluates
 /// the revealed data.
-async fn prove(cfg: &Config, ws: Ws, group_id: &str, method: &str) -> Result<eligibility::Verdict> {
+async fn prove(
+    app: &App,
+    ws: Ws,
+    group_id: &str,
+    method: &str,
+    audit: &mut audit::VerifierAudit,
+) -> Result<eligibility::Verdict> {
+    let cfg = &app.cfg;
     let (expected_path, _) =
         myna::request_for(method).ok_or_else(|| anyhow!("unknown method {method}"))?;
 
@@ -213,11 +238,18 @@ async fn prove(cfg: &Config, ws: Ws, group_id: &str, method: &str) -> Result<eli
         VerifierCommitStart::Mpc(verifier) => {
             let c = verifier.config();
             info!(max_sent = c.max_sent_data(), max_recv = c.max_recv_data(), "prover MPC config");
+            audit.limits = serde_json::json!({
+                "proverRequested": { "maxSent": c.max_sent_data(), "maxRecv": c.max_recv_data() },
+                "verifierAllows": { "maxSent": cfg.max_sent_data, "maxRecv": cfg.max_recv_data },
+            });
+            audit.event("MPC config received");
             if c.max_sent_data() > cfg.max_sent_data || c.max_recv_data() > cfg.max_recv_data {
                 verifier.reject(Some("max_sent_data/max_recv_data too large")).await?;
                 bail!("prover requested limits above ours");
             }
-            verifier.accept().await?.run().await?
+            let verifier = verifier.accept().await?;
+            audit.event("MPC accepted, running MPC-TLS with myna.go.jp");
+            verifier.run().await?
         }
         VerifierCommitStart::Proxy(verifier) => {
             verifier.reject(Some("only MPC-TLS is accepted")).await?;
@@ -225,6 +257,11 @@ async fn prove(cfg: &Config, ws: Ws, group_id: &str, method: &str) -> Result<eli
         }
     };
     info!("TLS session committed, waiting for disclosure");
+    audit.event("MPC-TLS finished, TLS session committed");
+    record_tls(audit, verifier.tls_transcript());
+    if let Some(cap) = app.last_relay.lock().await.as_ref() {
+        audit.wire = Some(audit::parse_wire(&cap.lock().unwrap()));
+    }
 
     let verifier = verifier.verify().await?;
     if !verifier.request().server_identity() {
@@ -235,6 +272,7 @@ async fn prove(cfg: &Config, ws: Ws, group_id: &str, method: &str) -> Result<eli
     // `accept` checks the certificate chain against the Mozilla roots (webpki), at
     // the handshake time, bound to the server's ephemeral key.
     let (VerifierOutput { server_name, transcript, .. }, verifier) = verifier.accept().await?;
+    audit.event("disclosure verified against the committed transcript; certificate chain accepted");
     verifier.close().await?;
     handle.close();
     let _ = driver_task.await;
@@ -243,16 +281,57 @@ async fn prove(cfg: &Config, ws: Ws, group_id: &str, method: &str) -> Result<eli
     if name.as_str() != myna::SERVER_NAME {
         bail!("server name is {}, expected {}", name.as_str(), myna::SERVER_NAME);
     }
+    audit.tls.server_name = Some(name.as_str().to_string());
     let transcript = transcript.context("nothing was revealed")?;
+    audit.transcript = Some(audit::PartialTranscript {
+        sent_len: transcript.len_sent(),
+        recv_len: transcript.len_received(),
+        sent_authed: audit::ranges(transcript.sent_authed().iter()),
+        recv_authed: audit::ranges(transcript.received_authed().iter()),
+        sent_b64: audit::b64(transcript.sent_unsafe()),
+        recv_b64: audit::b64(transcript.received_unsafe()),
+    });
     let revealed = disclosure::to_revealed(&transcript)?;
+    audit.disclosed = Some(serde_json::json!({
+        "requestPath": revealed.request_path,
+        "fields": revealed.fields,
+    }));
     info!(path = %revealed.request_path, fields = ?revealed.fields, "revealed");
     if revealed.request_path != expected_path {
         bail!("request path {} does not match method {method}", revealed.request_path);
     }
-    Ok(eligibility::evaluate(group_id, method, &revealed))
+    audit.criteria = Some(eligibility::explain(group_id, method, &revealed));
+    let verdict = eligibility::evaluate(group_id, method, &revealed);
+    audit.event(format!("criteria evaluated: passed={}", verdict.passed));
+    Ok(verdict)
 }
 
-async fn report(app: &App, outcome: &Outcome) {
+/// Records what the verifier holds about the TLS connection itself.
+fn record_tls(audit: &mut audit::VerifierAudit, t: &tlsn::transcript::TlsTranscript) {
+    audit.tls.version = Some(format!("{:?}", t.version()));
+    audit.tls.connection_time_unix = Some(t.time());
+    audit.tls.cert_chain_check = "tlsn verifies the prover-supplied chain with webpki against the Mozilla \
+        root store at the handshake time, and the server's signature over the ephemeral key \
+        it used in MPC-TLS; the chain as seen on the wire is under `wire.certChain`"
+        .into();
+    let summarize = |records: &[tlsn::transcript::Record]| audit::Records {
+        count: records.len(),
+        ciphertext_bytes: records.iter().map(|r| r.ciphertext.len()).sum(),
+        with_plaintext: records.iter().filter(|r| r.plaintext.is_some()).count(),
+        types: records
+            .iter()
+            .map(|r| format!("{:?}{}", r.typ, if r.plaintext.is_some() { " (plaintext)" } else { "" }))
+            .collect(),
+        first_ciphertext_hex: records
+            .iter()
+            .find(|r| !r.ciphertext.is_empty())
+            .map(|r| audit::hex(&r.ciphertext[..r.ciphertext.len().min(32)])),
+    };
+    audit.tls.sent_records = summarize(t.sent());
+    audit.tls.recv_records = summarize(t.recv());
+}
+
+async fn report(app: &App, outcome: &Outcome) -> String {
     let url = format!("{}/api/internal/myna-proof", app.cfg.web_url);
     let res = app
         .http
@@ -262,11 +341,13 @@ async fn report(app: &App, outcome: &Outcome) {
         .timeout(Duration::from_secs(10))
         .send()
         .await;
-    match res {
-        Ok(r) if r.status().is_success() => info!("reported proof to {url}"),
-        Ok(r) => warn!("web app answered {} for {url}", r.status()),
-        Err(e) => warn!("could not reach web app at {url}: {e}"),
-    }
+    let msg = match res {
+        Ok(r) if r.status().is_success() => format!("reported proof to {url}: {}", r.status()),
+        Ok(r) => format!("web app answered {} for {url}", r.status()),
+        Err(e) => format!("could not reach web app at {url}: {e}"),
+    };
+    info!("{msg}");
+    msg
 }
 
 async fn send_result(app: &App, mut ws: Ws, session_id: &str) -> Result<()> {
@@ -281,12 +362,15 @@ async fn send_result(app: &App, mut ws: Ws, session_id: &str) -> Result<()> {
     Ok(())
 }
 
-async fn relay(ws: Ws, target: &str) -> Result<()> {
+async fn relay(app: &App, ws: Ws, target: &str) -> Result<()> {
     if target != myna::RELAY_TARGET {
         bail!("relay target {target:?} not allowed");
     }
-    let mut tcp = TcpStream::connect(target).await?;
+    let tcp = TcpStream::connect(target).await?;
     tcp.set_nodelay(true)?;
+    let capture = Arc::new(std::sync::Mutex::new(Vec::new()));
+    *app.last_relay.lock().await = Some(capture.clone());
+    let mut tcp = Tap { inner: tcp, capture, limit: 16 * 1024 };
     let mut ws = WsStream::new(ws).compat();
     let (up, down) = tokio::io::copy_bidirectional(&mut ws, &mut tcp).await.unwrap_or((0, 0));
     info!("relay {target} closed (up {up} B, down {down} B)");
@@ -295,4 +379,46 @@ async fn relay(ws: Ws, target: &str) -> Result<()> {
 
 fn now_rfc3339() -> String {
     humantime::format_rfc3339_seconds(std::time::SystemTime::now()).to_string()
+}
+
+/// Passes a stream through, keeping a copy of the first `limit` bytes read from it.
+struct Tap<T> {
+    inner: T,
+    capture: Arc<std::sync::Mutex<Vec<u8>>>,
+    limit: usize,
+}
+
+impl<T: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for Tap<T> {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let before = buf.filled().len();
+        let res = std::pin::Pin::new(&mut self.inner).poll_read(cx, buf);
+        if res.is_ready() {
+            let limit = self.limit;
+            let mut cap = self.capture.lock().unwrap();
+            let room = limit.saturating_sub(cap.len());
+            let new = &buf.filled()[before..];
+            cap.extend_from_slice(&new[..new.len().min(room)]);
+        }
+        res
+    }
+}
+
+impl<T: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for Tap<T> {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        data: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        std::pin::Pin::new(&mut self.inner).poll_write(cx, data)
+    }
+    fn poll_flush(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.inner).poll_flush(cx)
+    }
+    fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.inner).poll_shutdown(cx)
+    }
 }

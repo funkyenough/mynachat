@@ -4,6 +4,12 @@
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;
   const msg = event.data;
+  if (msg?.type === 'MYNA_AUDIT_REQUEST') {
+    chrome.runtime.sendMessage({ type: 'MYNA_AUDIT_REQUEST', sessionId: msg.sessionId })
+      .then((r) => window.postMessage({ type: 'MYNA_AUDIT_RESULT', sessionId: msg.sessionId, audit: r?.audit ?? null }, window.location.origin))
+      .catch(() => window.postMessage({ type: 'MYNA_AUDIT_RESULT', sessionId: msg.sessionId, audit: null }, window.location.origin));
+    return;
+  }
   if (!msg || msg.type !== 'MYNA_PROVE_REQUEST') return;
   const { sessionId, groupId, method, verifierUrl, debugNoLogin } = msg;
   chrome.runtime.sendMessage({ type: 'MYNA_PROVE_REQUEST', sessionId, groupId, method, verifierUrl, debugNoLogin })

@@ -20,3 +20,6 @@ target/
 dist/
 *.sqlite
 *.db
+
+# Verifier audit records (contain revealed data)
+verifier/audit/

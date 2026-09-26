@@ -41,7 +41,7 @@ pub struct Group {
 }
 
 /// Per-method criteria. Fields a method doesn't use are ignored.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Criteria {
     #[serde(default)]

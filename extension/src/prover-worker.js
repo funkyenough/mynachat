@@ -64,15 +64,46 @@ function waitResult(url) {
 }
 
 const enc = new TextEncoder();
+
+function toB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+function cookieNames(cookieHeader) {
+  return (cookieHeader || '').split(';').map((c) => c.split('=')[0].trim()).filter(Boolean);
+}
+
+/** Copy of the request bytes with every cookie value overwritten by '*' (same length, so ranges still line up). */
+function redactCookie(bytes) {
+  const out = Uint8Array.from(bytes);
+  const text = new TextDecoder('latin1').decode(out);
+  const m = /\r\ncookie: ([^\r]*)/i.exec(text);
+  if (!m) return out;
+  const start = m.index + m[0].length - m[1].length;
+  let i = start;
+  for (const part of m[1].split(';')) {
+    const eq = part.indexOf('=');
+    const valueStart = i + (eq >= 0 ? eq + 1 : part.length);
+    for (let k = valueStart; k < i + part.length; k++) out[k] = 0x2a;
+    i += part.length + 1;
+  }
+  return out;
+}
 const header = (v) => Array.from(enc.encode(v));
 
 async function prove(job) {
   const { tabId, sessionId, groupId, method, verifierUrl, cookieHeader } = job;
+  const timeline = [];
   const stage = (s) => {
-    console.log(`[prover] ${s} (+${((performance.now() - t0) / 1000).toFixed(1)}s)`);
+    const tMs = Math.round(performance.now() - t0);
+    timeline.push({ tMs, stage: s });
+    console.log(`[prover] ${s} (+${(tMs / 1000).toFixed(1)}s)`);
     self.postMessage({ kind: 'progress', tabId, sessionId, stage: s });
   };
   const t0 = performance.now();
+  const startedAt = new Date().toISOString();
 
   stage('loading_wasm');
   await ensureWasm();
@@ -125,20 +156,37 @@ async function prove(job) {
     // if found, one matching drugN pair. With no match we still finish the
     // protocol so the verifier records a failed attempt.
     stage('revealing');
-    await prover.reveal(
-      {
-        sent: [{ start: 0, end: indexOfSeq(sentBytes, [13, 10]) }],
-        recv: match ? [{ start: match.start, end: match.end }] : [],
-        server_identity: true,
-      },
-      null,
-    );
+    const reveal = {
+      sent: [{ start: 0, end: indexOfSeq(sentBytes, [13, 10]) }],
+      recv: match ? [{ start: match.start, end: match.end }] : [],
+      server_identity: true,
+    };
+    await prover.reveal(reveal, null);
 
     stage('verifying');
     const q2 = new URLSearchParams({ sessionId });
     const outcome = await waitResult(`${verifierUrl}/result?${q2}`);
     stage('done');
     const error = outcome.error ?? (match ? undefined : `no matching prescription found (${drugCount} drugs checked)`);
+    // The prover's own view, kept inside the extension (chrome.storage.session) for the
+    // audit report. Never sent to the verifier or the web server.
+    self.postMessage({
+      kind: 'audit',
+      sessionId,
+      audit: {
+        sessionId, groupId, method, startedAt, serverName: SERVER_NAME,
+        limits: { maxSent: MAX_SENT_DATA, maxRecv: MAX_RECV_DATA },
+        request: { method: 'POST', path: PATH, body: BODY, cookieNames: cookieNames(cookieHeader) },
+        responseStatus: response.status,
+        sentB64: toB64(redactCookie(sentBytes)),
+        recvB64: toB64(recvBytes),
+        revealed: { sent: reveal.sent.map((r) => [r.start, r.end]), recv: reveal.recv.map((r) => [r.start, r.end]) },
+        drugCount,
+        matched: match ? { value: match.value, stem: match.stem ?? null } : null,
+        timeline,
+        verifierOutcome: outcome,
+      },
+    });
     self.postMessage({ kind: 'result', tabId, sessionId, passed: !!outcome.passed, error });
   } finally {
     prover.free();

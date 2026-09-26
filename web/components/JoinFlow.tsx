@@ -199,6 +199,11 @@ export default function JoinFlow({ group, methods, appId, environment, verifierU
           {mynaDone && <span className="ok">✓ 資格を確認しました / Eligibility verified</span>}
           {proving && <span className="muted">証明中… / Proving…</span>}
         </div>
+        {sessionId && (mynaDone || state === "failed") && (
+          <a className="small" href={`/audit/${sessionId}`} target="_blank" rel="noreferrer">
+            証明の監査レポート / Proof audit report →
+          </a>
+        )}
         {stages.length > 0 && (
           <ul className="steps small">
             {stages.map((s) => (

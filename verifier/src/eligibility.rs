@@ -68,6 +68,26 @@ fn to_criteria(method: criteria::Method, d: &Disclosed) -> Result<criteria::Reve
     }
 }
 
+/// What the criteria saw: the group's criteria for the method and the input built from the disclosure.
+pub fn explain(group_id: &str, method: &str, d: &Disclosed) -> Value {
+    let catalog = criteria::Catalog::default_catalog();
+    let parsed = method.parse::<criteria::Method>();
+    let group_criteria = parsed
+        .as_ref()
+        .ok()
+        .and_then(|m| catalog.group(group_id)?.methods.get(m).cloned());
+    let input = parsed.map_err(|e| e.to_string()).and_then(|m| to_criteria(m, d));
+    json!({
+        "groupCriteria": group_criteria,
+        "expectedPath": parsed_path(method),
+        "input": match input { Ok(r) => json!(r), Err(e) => json!({ "error": e }) },
+    })
+}
+
+fn parsed_path(method: &str) -> Option<&'static str> {
+    method.parse::<criteria::Method>().ok().map(expected_path)
+}
+
 pub fn evaluate(group_id: &str, method: &str, d: &Disclosed) -> Verdict {
     let Ok(method) = method.parse::<criteria::Method>() else {
         return fail(group_id, format!("unknown method {method}"));

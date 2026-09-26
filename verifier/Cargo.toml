@@ -10,6 +10,9 @@ default-run = "myna-verifier"
 # be bumped together (the MPC-TLS protocol is not compatible across alpha releases).
 [dependencies]
 criteria = { path = "../crates/criteria" }
+base64 = "0.22"
+sha2 = "0.10"
+x509-parser = "0.16"
 tlsn = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.15", features = ["mozilla-certs"] }
 # Only used by the native test prover (same code path as the WASM prover).
 tlsn-sdk-core = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.15", features = ["mozilla-certs"] }

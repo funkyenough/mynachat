@@ -14,7 +14,7 @@
       "run_at": "document_start"
     }
   ],
-  "permissions": ["cookies", "offscreen"],
+  "permissions": ["cookies", "offscreen", "storage"],
   "host_permissions": ["https://myna.go.jp/*", "http://localhost:3000/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"

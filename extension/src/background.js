@@ -39,6 +39,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.target === 'background') {
     if (msg.kind === 'progress') progress(msg.tabId, msg.sessionId, msg.stage);
     if (msg.kind === 'result') finish(msg.tabId, msg.sessionId, msg.passed, msg.error);
+    if (msg.kind === 'audit') chrome.storage.session.set({ [`audit:${msg.sessionId}`]: msg.audit });
+  }
+  // The web app's audit page asks for the prover's view of a session.
+  if (msg?.type === 'MYNA_AUDIT_REQUEST' && sender.tab) {
+    chrome.storage.session.get(`audit:${msg.sessionId}`).then((r) => {
+      sendResponse({ audit: r[`audit:${msg.sessionId}`] ?? null });
+    });
+    return true; // async sendResponse
   }
 });
 
