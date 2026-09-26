@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import LangProvider from "@/components/LangProvider";
 import LangToggle from "@/components/LangToggle";
 import { currentAccount } from "@/lib/auth";
 import { getLang } from "@/lib/lang";
@@ -44,7 +45,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </nav>
           </div>
         </header>
-        <main>{children}</main>
+        <main>
+          <LangProvider lang={lang}>{children}</LangProvider>
+        </main>
       </body>
     </html>
   );

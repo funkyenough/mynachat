@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import WorldIdButton from "./WorldIdButton";
 import { REACTIONS, type Post, type ThreadDetail } from "@/lib/board-shared";
+import { useT } from "./LangProvider";
 import { api, errMsg } from "@/lib/api";
 import { fmtAgo, fmtTime } from "@/lib/format";
 import type { WorldConfig } from "@/lib/world-config";
@@ -14,14 +15,15 @@ type Props = { groupId: string; memberId: number; initial: ThreadDetail; world: 
 
 export default function ThreadView({ groupId, memberId, initial, world, devFakeWorld }: Props) {
   const router = useRouter();
-  const [t, setT] = useState(initial);
+  const [thread, setThread] = useState(initial);
+  const { t } = useT();
   const [quote, setQuote] = useState<Post | null>(null);
   const [error, setError] = useState<string | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
 
   const refresh = async () => {
     try {
-      setT(await api<ThreadDetail>(`/api/threads/${t.id}`));
+      setThread(await api<ThreadDetail>(`/api/threads/${thread.id}`));
     } catch (e) {
       if ((e as { status?: number }).status === 404) router.push(`/groups/${groupId}`);
     }
@@ -30,7 +32,7 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
     const i = setInterval(() => document.visibilityState === "visible" && refresh(), REFRESH_MS);
     return () => clearInterval(i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t.id]);
+  }, [thread.id]);
 
   async function act(fn: () => Promise<unknown>) {
     setError(null);
@@ -44,7 +46,7 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
 
   const react = (kind: "t" | "r", id: number, emoji: string) => act(() => api("/api/reactions", { kind, id, emoji }));
   const del = (kind: "t" | "r", id: number) => {
-    if (!confirm("削除しますか？ / Delete this post?")) return;
+    if (!confirm(t("削除しますか？", "Delete this post?"))) return;
     if (kind === "t") void api("/api/posts", { kind, id }, "DELETE").then(() => router.push(`/groups/${groupId}`)).catch((e) => setError(errMsg(e)));
     else void act(() => api("/api/posts", { kind, id }, "DELETE"));
   };
@@ -56,20 +58,20 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
   return (
     <div className="stack">
       <article className="card post op">
-        <h1 className="flush">{t.title}</h1>
-        <PostBody post={t.post} />
-        {t.poll && <PollBox poll={t.poll} memberId={memberId} world={world} devFakeWorld={devFakeWorld} onVoted={refresh} onError={setError} />}
-        <PostActions post={t.post} onReact={(e) => react("t", t.id, e)} onDelete={() => del("t", t.id)} />
+        <h1 className="flush">{thread.title}</h1>
+        <PostBody post={thread.post} />
+        {thread.poll && <PollBox poll={thread.poll} memberId={memberId} world={world} devFakeWorld={devFakeWorld} onVoted={refresh} onError={setError} />}
+        <PostActions post={thread.post} onReact={(e) => react("t", thread.id, e)} onDelete={() => del("t", thread.id)} />
       </article>
 
-      <h2>返信 / Replies ({t.replies.filter((r) => !r.deleted).length})</h2>
-      {t.replies.length === 0 && <p className="muted small">まだ返信はありません / No replies yet.</p>}
+      <h2>{t("返信", "Replies")} ({thread.replies.filter((r) => !r.deleted).length})</h2>
+      {thread.replies.length === 0 && <p className="muted small">{t("まだ返信はありません", "No replies yet.")}</p>}
       <ol className="replies">
-        {t.replies.map((r, i) => (
+        {thread.replies.map((r, i) => (
           <li key={r.id} id={`r${r.id}`} className={`card post${r.deleted ? " deleted" : ""}`}>
             {r.quote && (
               <a className="quote small" href={`#r${r.quote.id}`}>
-                <strong>{r.quote.author}</strong>: {r.quote.excerpt}
+                <strong>{r.quote.author}</strong>: {r.quote.deleted ? t("（削除されました）", "(deleted)") : r.quote.excerpt}
               </a>
             )}
             <PostBody post={r} floor={i + 1} />
@@ -81,7 +83,7 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
       </ol>
 
       <ReplyForm
-        threadId={t.id}
+        threadId={thread.id}
         quote={quote}
         clearQuote={() => setQuote(null)}
         textarea={composer}
@@ -93,19 +95,25 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
 }
 
 function PostBody({ post, floor }: { post: Post; floor?: number }) {
+  const { lang, t } = useT();
   return (
     <>
       <div className="small muted">
         {floor && <span className="floor">#{floor} · </span>}
         <span className="pseudo">{post.author}</span>
-        {post.mine && " (あなた / you)"} · <time title={fmtTime(post.created_at)}>{fmtAgo(post.created_at)}</time>
+        {post.mine && ` (${t("あなた", "you")})`} · <time title={fmtTime(post.created_at, lang)}>{fmtAgo(post.created_at, lang)}</time>
       </div>
-      {post.body && <p className="body">{post.body}</p>}
+      {post.deleted ? (
+        <p className="body">{t("（削除されました）", "(deleted)")}</p>
+      ) : (
+        post.body && <p className="body">{post.body}</p>
+      )}
     </>
   );
 }
 
 function PostActions({ post, onReact, onDelete, onReply }: { post: Post; onReact: (e: string) => void; onDelete: () => void; onReply?: () => void }) {
+  const { t } = useT();
   const counts = new Map(post.reactions.map((r) => [r.emoji as string, r]));
   return (
     <div className="actions row">
@@ -118,8 +126,8 @@ function PostActions({ post, onReact, onDelete, onReply }: { post: Post; onReact
         );
       })}
       <span className="spacer" />
-      {onReply && <button type="button" className="link small" onClick={onReply}>↩ 引用して返信 / Quote</button>}
-      {post.mine && <button type="button" className="link small danger" onClick={onDelete}>削除 / Delete</button>}
+      {onReply && <button type="button" className="link small" onClick={onReply}>{t("↩ 引用して返信", "↩ Quote")}</button>}
+      {post.mine && <button type="button" className="link small danger" onClick={onDelete}>{t("削除", "Delete")}</button>}
     </div>
   );
 }
@@ -132,6 +140,7 @@ function PollBox({ poll, memberId, world, devFakeWorld, onVoted, onError }: {
   onVoted: () => Promise<void>;
   onError: (m: string) => void;
 }) {
+  const { t } = useT();
   // The server doesn't know who voted (secret ballot), so remember locally that this member did.
   const key = `voted-poll-${poll.id}-m${memberId}`;
   const [voted, setVoted] = useState(false);
@@ -167,7 +176,7 @@ function PollBox({ poll, memberId, world, devFakeWorld, onVoted, onError }: {
                   world={world}
                   className="secondary small-btn"
                   context={{ purpose: "poll", pollId: poll.id, optionId: o.id }}
-                  label="投票 / Vote"
+                  label={t("投票", "Vote")}
                   onVerify={async (idkitResult) => {
                     await api(`/api/polls/${poll.id}/vote`, { optionId: o.id, idkitResult });
                   }}
@@ -192,9 +201,10 @@ function PollBox({ poll, memberId, world, devFakeWorld, onVoted, onError }: {
         );
       })}
       <p className="small muted">
-        {poll.total} 票 / votes · 秘密投票: World ID で1人1票。誰がどれに投票したかはサーバーにも記録されません。
-        <br />
-        Secret ballot: one vote per human via World ID; not even the server records who voted for what.
+        {t(
+          `${poll.total} 票 · 秘密投票: World ID で1人1票。誰がどれに投票したかはサーバーにも記録されません。`,
+          `${poll.total} votes · Secret ballot: one vote per human via World ID; not even the server records who voted for what.`,
+        )}
       </p>
     </div>
   );
@@ -207,6 +217,7 @@ function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
   textarea: React.RefObject<HTMLTextAreaElement | null>;
   onPosted: () => Promise<void>;
 }) {
+  const { t } = useT();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,7 +249,7 @@ function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
       )}
       <textarea
         ref={textarea}
-        placeholder="返信を書く / Write a reply"
+        placeholder={t("返信を書く", "Write a reply")}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
@@ -249,7 +260,7 @@ function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
         required
       />
       <div className="row">
-        <button type="submit" disabled={busy || !body.trim()}>{busy ? "…" : "返信 / Reply"}</button>
+        <button type="submit" disabled={busy || !body.trim()}>{busy ? "…" : t("返信", "Reply")}</button>
         <span className="small muted">⌘/Ctrl + Enter</span>
         {error && <span className="error small">{error}</span>}
       </div>

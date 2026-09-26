@@ -1,8 +1,9 @@
-// The visitor's language for single-language UI (landing page, site header).
-// middleware.ts resolves it once per request: ?lang= > the "lang" cookie > Accept-Language.
+// The visitor's language. middleware.ts resolves it once per request:
+// ?lang= > the "lang" cookie > Accept-Language. Server-only; client code uses useT().
 import { headers } from "next/headers";
+import { translator, type Lang } from "./i18n";
 
-export type Lang = "ja" | "en";
+export type { Lang } from "./i18n";
 export const LANG_HEADER = "x-mnd-lang";
 export const LANG_COOKIE = "lang";
 
@@ -16,4 +17,10 @@ export function fromAcceptLanguage(accept: string | null): Lang {
 export async function getLang(): Promise<Lang> {
   const v = (await headers()).get(LANG_HEADER);
   return isLang(v) ? v : "ja";
+}
+
+/** Language and translator for a server component: `const { lang, t } = await getT();` */
+export async function getT() {
+  const lang = await getLang();
+  return { lang, t: translator(lang) };
 }

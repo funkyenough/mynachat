@@ -4,7 +4,6 @@ import { type Emoji, type Poll, type Post, type Reaction, type ThreadDetail, typ
 
 export * from "./board-shared";
 
-const DELETED = "（削除されました / deleted）";
 const excerpt = (s: string, n = 140) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 export async function listThreads(groupId: string, memberId: number): Promise<ThreadSummary[]> {
@@ -107,12 +106,12 @@ export async function threadDetail(threadId: number, memberId: number): Promise<
     replies: rows.map((r) => ({
       id: r.id,
       author: r.author,
-      body: r.deleted_at ? DELETED : r.body,
+      body: r.deleted_at ? "" : r.body,
       created_at: r.created_at,
       deleted: !!r.deleted_at,
       mine: r.member_id === memberId,
       quote: r.quote_id && r.q_author
-        ? { id: r.quote_id, author: r.q_author, excerpt: r.q_deleted ? DELETED : excerpt(r.q_body ?? "", 100) }
+        ? { id: r.quote_id, author: r.q_author, excerpt: r.q_deleted ? "" : excerpt(r.q_body ?? "", 100), deleted: !!r.q_deleted }
         : null,
       reactions: r.deleted_at ? [] : rr.get(r.id) ?? [],
     })),

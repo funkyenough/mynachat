@@ -1,3 +1,5 @@
+import { docLang } from "./i18n";
+
 // Client-side fetch helper. "Failed to fetch" (a TypeError) means the request never got an
 // HTTP response: the dev server restarted or is down. Say that instead of the raw message.
 export class ApiError extends Error {
@@ -15,7 +17,8 @@ export async function api<T = any>(url: string, body?: unknown, method = body ==
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError("サーバーに接続できません / Can't reach the server. Is it running? Try again.", 0, null);
+    const msg = docLang() === "ja" ? "サーバーに接続できません。もう一度お試しください。" : "Can't reach the server. Try again.";
+    throw new ApiError(msg, 0, null);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

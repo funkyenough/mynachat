@@ -5,6 +5,7 @@ import Steps from "@/components/Steps";
 import { currentAccount, memberOf } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { getGroup, getMethod } from "@/lib/groups";
+import { getT } from "@/lib/lang";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default async function JoinPage({ params }: { params: Promise<{ groupId: 
   const me = await currentAccount();
   if (me && (await memberOf(me.id, groupId))) redirect(`/groups/${groupId}`);
   const here = `/groups/${groupId}/join`;
+  const { lang, t } = await getT();
 
   // Group's methods, plus "diagnosis" always listed (disabled until the EHR service exists).
   const ids = group.methods.includes("diagnosis") ? group.methods : [...group.methods, "diagnosis"];
@@ -25,29 +27,30 @@ export default async function JoinPage({ params }: { params: Promise<{ groupId: 
 
   return (
     <div className="narrow">
-      <p className="small"><Link href={`/groups/${groupId}`}>← {group.name.ja} / {group.name.en}</Link></p>
-      <h1>{group.name.ja} に参加 / Join {group.name.en}</h1>
+      <p className="small"><Link href={`/groups/${groupId}`}>← {group.name[lang]}</Link></p>
+      <h1>{t(`${group.name.ja} に参加`, `Join ${group.name.en}`)}</h1>
       {me ? (
         <JoinFlow group={{ id: group.id, name: group.name }} methods={methods} verifierUrl={config.verifierUrl} devFakeMyna={config.devFakeMyna} />
       ) : (
         <div className="stack">
           <Steps
             steps={[
-              { label: "アカウント / Account", state: "current" },
-              { label: "表示名・方法 / Name & method", state: "todo" },
-              { label: "マイナで証明 / Prove", state: "todo" },
-              { label: "参加 / Join", state: "todo" },
+              { label: t("アカウント", "Account"), state: "current" },
+              { label: t("表示名・方法", "Name & method"), state: "todo" },
+              { label: t("マイナで証明", "Prove"), state: "todo" },
+              { label: t("参加", "Join"), state: "todo" },
             ]}
           />
           <div className="card stack">
             <p>
-              まずアカウントが必要です。World ID で1回だけ本人確認し、以後はパスキーでログインします。
-              <br />
-              First, an account: verify once with World ID, then log in with a passkey from then on.
+              {t(
+                "まずアカウントが必要です。World ID で1回だけ本人確認し、以後はパスキーでログインします。",
+                "First, an account: verify once with World ID, then log in with a passkey from then on.",
+              )}
             </p>
             <div className="row">
-              <Link className="button" href={`/signup?next=${encodeURIComponent(here)}`}>アカウント作成 / Create account</Link>
-              <Link className="button secondary" href={`/login?next=${encodeURIComponent(here)}`}>ログイン / Log in</Link>
+              <Link className="button" href={`/signup?next=${encodeURIComponent(here)}`}>{t("アカウント作成", "Create account")}</Link>
+              <Link className="button secondary" href={`/login?next=${encodeURIComponent(here)}`}>{t("ログイン", "Log in")}</Link>
             </div>
           </div>
         </div>

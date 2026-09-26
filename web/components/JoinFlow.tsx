@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Steps from "./Steps";
+import { useT } from "./LangProvider";
 import { api, errMsg } from "@/lib/api";
 
 export type MethodOption = {
@@ -24,12 +25,12 @@ type EnrollState = "pending" | "myna_verified" | "failed" | "member";
 const EXTENSION_TIMEOUT_MS = 5000;
 const POLL_MS = 1500;
 
-const STAGE_LABELS: Record<string, string> = {
-  opening_portal: "マイナポータルを開いています / Opening Myna Portal",
-  waiting_login: "ログインを待っています / Waiting for you to log in",
-  connecting: "検証者に接続中 / Connecting to verifier",
-  proving: "MPC-TLS 証明中 / Running MPC-TLS proof",
-  submitting: "結果を送信中 / Submitting result",
+const STAGE_LABELS: Record<string, [ja: string, en: string]> = {
+  opening_portal: ["マイナポータルを開いています", "Opening Myna Portal"],
+  waiting_login: ["ログインを待っています", "Waiting for you to log in"],
+  connecting: ["検証者に接続中", "Connecting to verifier"],
+  proving: ["MPC-TLS 証明中", "Running MPC-TLS proof"],
+  submitting: ["結果を送信中", "Submitting result"],
 };
 
 const WORDS = ["sakura", "kaede", "sora", "umi", "hoshi", "kumo", "mori", "yuki", "tsuki", "kaze"];
@@ -39,6 +40,7 @@ const randomHandle = () =>
 /** Joining a group, for a logged-in account: display name + method, then the Myna Portal proof. */
 export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: Props) {
   const router = useRouter();
+  const { lang, t } = useT();
   const [method, setMethod] = useState(methods.find((m) => m.available)?.id ?? "");
   const [handle, setHandle] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
       } else if (d.type === "MYNA_PROVE_RESULT") {
         setExtensionSeen(true);
         setExtensionMissing(false);
-        if (!d.passed) setError(d.error ? String(d.error) : "証明に失敗しました / Proof failed");
+        if (!d.passed) setError(d.error ? String(d.error) : t("証明に失敗しました", "Proof failed"));
       }
     }
     window.addEventListener("message", onMessage);
@@ -153,18 +155,18 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
     <div className="stack">
       <Steps
         steps={[
-          { label: "アカウント / Account", state: "done" },
-          { label: "表示名・方法 / Name & method", state: started ? "done" : "current" },
+          { label: t("アカウント", "Account"), state: "done" },
+          { label: t("表示名・方法", "Name & method"), state: started ? "done" : "current" },
           {
-            label: "マイナで証明 / Prove",
+            label: t("マイナで証明", "Prove"),
             state: state === "myna_verified" || state === "member" ? "done" : started ? "current" : "todo",
           },
-          { label: "参加 / Join", state: state === "member" ? "done" : state === "myna_verified" ? "current" : "todo" },
+          { label: t("参加", "Join"), state: state === "member" ? "done" : state === "myna_verified" ? "current" : "todo" },
         ]}
       />
 
       <form className="card stack" onSubmit={startProof}>
-        <h2 className="flush">表示名 / Display name in this group</h2>
+        <h2 className="flush">{t("表示名", "Display name in this group")}</h2>
         <div className="row">
           <input
             type="text"
@@ -177,16 +179,17 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
             style={{ flex: 1, minWidth: 160 }}
           />
           <button type="button" className="secondary" onClick={() => setHandle(randomHandle())} disabled={started}>
-            🎲 ランダム / Random
+            🎲 {t("ランダム", "Random")}
           </button>
         </div>
         <p className="small muted">
-          このグループだけで使う名前です。他のグループやユーザー名とは結びつきません。
-          <br />
-          Used only in this group, and never linked to your username or your other groups.
+          {t(
+            "このグループだけで使う名前です。他のグループやユーザー名とは結びつきません。",
+            "Used only in this group, and never linked to your username or your other groups.",
+          )}
         </p>
 
-        <h2>証明方法 / Proof method</h2>
+        <h2>{t("証明方法", "Proof method")}</h2>
         <div className="stack">
           {methods.map((m) => (
             <label key={m.id} className={`option${m.available ? "" : " disabled"}`}>
@@ -199,11 +202,11 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
                 onChange={() => setMethod(m.id)}
               />
               <span>
-                {m.name.ja} / {m.name.en}
+                {m.name[lang]}
                 {!m.available && (
                   <span className="muted small">
                     {" "}
-                    ({m.id === "diagnosis" ? "coming 2027" : (m.note ?? "unavailable")})
+                    ({m.id === "diagnosis" ? t("2027年予定", "coming 2027") : (m.note ?? t("利用不可", "unavailable"))})
                   </span>
                 )}
               </span>
@@ -212,34 +215,34 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
         </div>
 
         <p className="small muted">
-          マイナポータルの自分のデータから、参加条件を満たすことだけを証明します。記録そのものはグループに送られません。
-          <br />
-          Proves only that your own Myna Portal data meets the group&apos;s criteria. Your records are never sent to the
-          group.
+          {t(
+            "マイナポータルの自分のデータから、参加条件を満たすことだけを証明します。記録そのものはグループに送られません。",
+            "Proves only that your own Myna Portal data meets the group's criteria. Your records are never sent to the group.",
+          )}
         </p>
         <div className="row">
           <button type="submit" disabled={!method || busy || started}>
-            {state === "failed" ? "もう一度 / Try again" : "マイナポータルで証明 / Prove with Myna Portal"}
+            {state === "failed" ? t("もう一度", "Try again") : t("マイナポータルで証明", "Prove with Myna Portal")}
           </button>
-          {proving && <span className="muted">証明中… / Proving…</span>}
+          {proving && <span className="muted">{t("証明中…", "Proving…")}</span>}
           {(state === "myna_verified" || state === "member") && (
-            <span className="ok">✓ 資格を確認しました / Eligibility verified</span>
+            <span className="ok">{t("✓ 資格を確認しました", "✓ Eligibility verified")}</span>
           )}
         </div>
 
         {stages.length > 0 && (
           <ul className="steps small">
             {stages.map((s) => (
-              <li key={s}>• {STAGE_LABELS[s] ?? s}</li>
+              <li key={s}>• {STAGE_LABELS[s] ? t(...STAGE_LABELS[s]) : s}</li>
             ))}
           </ul>
         )}
         {proving && extensionMissing && (
           <p className="small">
-            拡張機能から応答がありません。mynachat Chrome
-            拡張機能をインストールして有効にし、このページを再読み込みしてください。
-            <br />
-            No response from the extension. Install and enable the mynachat Chrome extension, then reload this page.
+            {t(
+              "拡張機能から応答がありません。mynachat Chrome拡張機能をインストールして有効にし、このページを再読み込みしてください。",
+              "No response from the extension. Install and enable the mynachat Chrome extension, then reload this page.",
+            )}
           </p>
         )}
         {devFakeMyna && proving && (
@@ -252,7 +255,7 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
         )}
         {sessionId && state !== "pending" && (
           <a className="small" href={`/audit/${sessionId}`} target="_blank" rel="noreferrer">
-            証明の監査レポート / Proof audit report →
+            {t("証明の監査レポート", "Proof audit report")} →
           </a>
         )}
       </form>

@@ -24,7 +24,7 @@ export type Post = {
   created_at: number;
   deleted: boolean;
   mine: boolean;
-  quote: { id: number; author: string; excerpt: string } | null;
+  quote: { id: number; author: string; excerpt: string; deleted: boolean } | null;
   reactions: Reaction[];
 };
 

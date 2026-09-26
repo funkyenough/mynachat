@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import Steps from "./Steps";
 import WorldIdButton from "./WorldIdButton";
+import { useT } from "./LangProvider";
 import { api, errMsg } from "@/lib/api";
 import type { WorldConfig } from "@/lib/world-config";
 
@@ -17,6 +18,7 @@ type Phase = "account" | "world" | "passkey";
  */
 export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
   const router = useRouter();
+  const { t } = useT();
   const [phase, setPhase] = useState<Phase>("account");
   const [username, setUsername] = useState("");
   const [recoveryId, setRecoveryId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
     setBusy(true);
     setError(null);
     try {
-      if (!browserSupportsWebAuthn()) throw new Error("このブラウザはパスキーに対応していません / This browser doesn't support passkeys");
+      if (!browserSupportsWebAuthn()) throw new Error(t("このブラウザはパスキーに対応していません", "This browser doesn't support passkeys"));
       const { challengeId, options } = await api("/api/passkey/register/options", { signupId: recoveryId });
       const response = await startRegistration({ optionsJSON: options });
       await api("/api/passkey/register/verify", { challengeId, response });
@@ -73,16 +75,16 @@ export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
     <div className="stack">
       <Steps
         steps={[
-          { label: "アカウント / Account", state: step("account") },
-          { label: "World ID で確認 / Verify with World ID", state: step("world") },
-          { label: "新しいパスキー / New passkey", state: step("passkey") },
+          { label: t("アカウント", "Account"), state: step("account") },
+          { label: t("World ID で確認", "Verify with World ID"), state: step("world") },
+          { label: t("新しいパスキー", "New passkey"), state: step("passkey") },
         ]}
       />
 
       {phase === "account" && (
         <form className="card stack" onSubmit={start}>
           <label className="field">
-            <span>ユーザー名 / Username</span>
+            <span>{t("ユーザー名", "Username")}</span>
             <input
               type="text"
               value={username}
@@ -94,7 +96,7 @@ export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
             />
           </label>
           <div className="row">
-            <button type="submit" disabled={busy || !username}>{busy ? "…" : "次へ / Next"}</button>
+            <button type="submit" disabled={busy || !username}>{busy ? "…" : t("次へ", "Next")}</button>
           </div>
         </form>
       )}
@@ -102,16 +104,16 @@ export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
       {phase === "world" && (
         <section className="card stack">
           <p className="small muted">
-            アカウント作成時と同じ World ID で確認してください。ほかの人の World ID では復旧できません。
-            <br />
-            Confirm with the same World ID you used to create <strong>{username}</strong>. Nobody else&apos;s World ID can
-            recover it.
+            {t(
+              <>アカウント <strong>{username}</strong> を作成したときと同じ World ID で確認してください。ほかの人の World ID では復旧できません。</>,
+              <>Confirm with the same World ID you used to create <strong>{username}</strong>. Nobody else&apos;s World ID can recover it.</>,
+            )}
           </p>
           <div className="row">
             <WorldIdButton
               world={world}
               context={{ purpose: "recover", recoveryId }}
-              label="World ID で確認 / Verify with World ID"
+              label={t("World ID で確認", "Verify with World ID")}
               onVerify={async (idkitResult) => {
                 await api("/api/recover/verify", { recoveryId, idkitResult });
               }}
@@ -128,12 +130,13 @@ export default function RecoverFlow({ world, next, devFakeWorld }: Props) {
       {phase === "passkey" && (
         <section className="card stack">
           <p>
-            ✓ 確認できました。この端末用のパスキーを作成すると、<strong>{username}</strong> としてログインします。
-            <br />
-            Verified. Create a passkey on this device to log in as <strong>{username}</strong>.
+            {t(
+              <>✓ 確認できました。この端末用のパスキーを作成すると、<strong>{username}</strong> としてログインします。</>,
+              <>✓ Verified. Create a passkey on this device to log in as <strong>{username}</strong>.</>,
+            )}
           </p>
           <div className="row">
-            <button onClick={createPasskey} disabled={busy}>{busy ? "…" : "パスキーを作成 / Create passkey"}</button>
+            <button onClick={createPasskey} disabled={busy}>{busy ? "…" : t("パスキーを作成", "Create passkey")}</button>
           </div>
         </section>
       )}

@@ -2,23 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 import { api } from "@/lib/api";
+import type { Lang } from "@/lib/i18n";
 
 type Result = { code: string; kind: number; ja: string; en: string | null; groups: number };
 
-const EXAMPLES = ["花粉症", "脊髄性筋萎縮症", "クローン病", "diabetes", "G35", "J45"];
-
 const TEXT = {
-  both: { placeholder: "病名・ICD-10コードで検索 / Search a condition or ICD-10 code", eg: "例 / e.g.", none: "該当なし / No matches in ICD-10.", badge: "コミュニティあり / Community", examples: EXAMPLES },
   ja: { placeholder: "病名やICD-10コードで検索", eg: "例", none: "該当する病名はありません", badge: "コミュニティあり", examples: ["花粉症", "潰瘍性大腸炎", "脊髄性筋萎縮症", "クローン病", "片頭痛"] },
   en: { placeholder: "Search a condition or ICD-10 code", eg: "e.g.", none: "No matches in ICD-10", badge: "Community", examples: ["hay fever", "ulcerative colitis", "SMA", "Crohn", "migraine"] },
 };
 
-/**
- * Search box over all of ICD-10 (codes, Japanese and English names).
- * `lang` shows one language (the landing page); the default shows both, like the rest of the app.
- */
-export default function DiseaseSearch({ autoFocus, lang = "both" }: { autoFocus?: boolean; lang?: "both" | "ja" | "en" }) {
+/** Search box over all of ICD-10 (codes, Japanese and English names), in the page language. */
+export default function DiseaseSearch({ autoFocus, lang: langProp }: { autoFocus?: boolean; lang?: Lang }) {
+  const ctx = useT();
+  const lang = langProp ?? ctx.lang;
   const t = TEXT[lang];
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -111,7 +109,6 @@ export default function DiseaseSearch({ autoFocus, lang = "both" }: { autoFocus?
                 ) : (
                   <>
                     <span>{r.ja}</span>
-                    {lang === "both" && r.en && <span className="muted small">{r.en}</span>}
                   </>
                 )}
               </span>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import Steps from "./Steps";
 import WorldIdButton from "./WorldIdButton";
+import { useT } from "./LangProvider";
 import { api, errMsg } from "@/lib/api";
 import type { WorldConfig } from "@/lib/world-config";
 
@@ -19,6 +20,7 @@ type Phase = "human" | "passkey";
  */
 export default function SignupFlow({ world, next, devFakeWorld }: Props) {
   const router = useRouter();
+  const { t } = useT();
   const [signupId, setSignupId] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("human");
   const [alreadyHasAccount, setAlreadyHasAccount] = useState(false);
@@ -65,7 +67,7 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
     setBusy(true);
     setError(null);
     try {
-      if (!browserSupportsWebAuthn()) throw new Error("このブラウザはパスキーに対応していません / This browser doesn't support passkeys");
+      if (!browserSupportsWebAuthn()) throw new Error(t("このブラウザはパスキーに対応していません", "This browser doesn't support passkeys"));
       const { challengeId, options } = await api("/api/passkey/register/options", { signupId, username });
       const response = await startRegistration({ optionsJSON: options });
       await api("/api/passkey/register/verify", { challengeId, response });
@@ -74,7 +76,7 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
     } catch (err) {
       const m = errMsg(err);
       const expired = /expired|World ID first/.test(m);
-      setError(expired ? `${m}. もう一度 World ID から / Start again from World ID.` : m);
+      setError(expired ? `${m}. ${t("もう一度 World ID からやり直してください。", "Start again from World ID.")}` : m);
       if (expired) void restart();
     } finally {
       setBusy(false);
@@ -90,15 +92,16 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
   if (alreadyHasAccount) {
     return (
       <section className="card stack">
-        <h2 className="flush">この World ID にはすでにアカウントがあります / You already have an account</h2>
+        <h2 className="flush">{t("この World ID にはすでにアカウントがあります", "You already have an account")}</h2>
         <p className="small muted">
-          1人につき1アカウントです。この端末にパスキーがあればログインしてください。パスキーをなくした場合は、World ID で復旧できます。
-          <br />
-          It&apos;s one account per person. Log in with your passkey, or recover the account with World ID if you lost it.
+          {t(
+            "1人につき1アカウントです。この端末にパスキーがあればログインしてください。パスキーをなくした場合は、World ID で復旧できます。",
+            "It's one account per person. Log in with your passkey, or recover the account with World ID if you lost it.",
+          )}
         </p>
         <div className="row">
-          <Link className="button" href={`/login?next=${encodeURIComponent(next)}`}>ログイン / Log in</Link>
-          <Link className="button secondary" href={`/recover?next=${encodeURIComponent(next)}`}>復旧する / Recover</Link>
+          <Link className="button" href={`/login?next=${encodeURIComponent(next)}`}>{t("ログイン", "Log in")}</Link>
+          <Link className="button secondary" href={`/recover?next=${encodeURIComponent(next)}`}>{t("復旧する", "Recover")}</Link>
         </div>
       </section>
     );
@@ -108,26 +111,26 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
     <div className="stack">
       <Steps
         steps={[
-          { label: "本人確認 / Verify with World ID", state: step("human") },
-          { label: "ユーザー名とパスキー / Username & passkey", state: step("passkey") },
+          { label: t("本人確認", "Verify with World ID"), state: step("human") },
+          { label: t("ユーザー名とパスキー", "Username & passkey"), state: step("passkey") },
         ]}
       />
 
       {phase === "human" && (
         <section className="card stack">
-          <h2 className="flush">1. World ID で本人確認 / Verify with World ID</h2>
+          <h2 className="flush">{t("1. World ID で本人確認", "1. Verify with World ID")}</h2>
           <p className="small muted">
-            1人につき1アカウントだけ作れます。あなたが誰かは分かりませんが、同じ人が2つ目のアカウントを作ることはできません。退会処分を受けた人が別アカウントで戻ってくることも防ぎます。
-            <br />
-            One account per human. We learn nothing about who you are, only that you haven&apos;t made an account before. This
-            keeps sock puppets and banned users out of patient communities.
+            {t(
+              "1人につき1アカウントだけ作れます。あなたが誰かは分かりませんが、同じ人が2つ目のアカウントを作ることはできません。退会処分を受けた人が別アカウントで戻ってくることも防ぎます。",
+              "One account per human. We learn nothing about who you are, only that you haven't made an account before. This keeps sock puppets and banned users out of patient communities.",
+            )}
           </p>
           <div className="row">
             <WorldIdButton
               world={world}
               context={{ purpose: "account", signupId }}
               disabled={!signupId}
-              label="World ID で確認 / Verify with World ID"
+              label={t("World ID で確認", "Verify with World ID")}
               onVerify={async (idkitResult) => {
                 await api("/api/signup/world-id", { signupId, idkitResult });
               }}
@@ -150,9 +153,9 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
 
       {phase === "passkey" && (
         <form className="card stack" onSubmit={createPasskey}>
-          <h2 className="flush">2. ユーザー名とパスキー / Username & passkey</h2>
+          <h2 className="flush">{t("2. ユーザー名とパスキー", "2. Username & passkey")}</h2>
           <label className="field">
-            <span>ユーザー名 / Username</span>
+            <span>{t("ユーザー名", "Username")}</span>
             <input
               type="text"
               value={username}
@@ -163,21 +166,20 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
               required
             />
             <span className={`small ${available?.ok ? "ok" : "muted"}`}>
-              {available === null ? "3–20文字、英数字と _ / 3–20 characters: A–Z, 0–9, _" : available.ok ? "✓ 使えます / available" : available.reason}
+              {available === null ? t("3–20文字、英数字と _", "3–20 characters: A–Z, 0–9, _") : available.ok ? t("✓ 使えます", "✓ available") : available.reason}
             </span>
           </label>
           <p className="small muted">
-            ユーザー名はログインと復旧に使い、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。登録後、アカウントページで World ID による復旧を設定できます。
-            <br />
-            Your username is for logging in and recovery, and is never shown on boards. Each group gets its own display name,
-            so groups can&apos;t be linked to each other. After signing up, you can set up World ID recovery on your account
-            page.
+            {t(
+              "ユーザー名はログインと復旧に使い、掲示板には表示されません。掲示板ではグループごとに別の表示名を使います。登録後、アカウントページで World ID による復旧を設定できます。",
+              "Your username is for logging in and recovery, and is never shown on boards. Each group gets its own display name, so groups can't be linked to each other. After signing up, you can set up World ID recovery on your account page.",
+            )}
           </p>
           <div className="row">
             <button type="submit" disabled={busy || !available?.ok}>
-              {busy ? "…" : "パスキーを作成 / Create passkey"}
+              {busy ? "…" : t("パスキーを作成", "Create passkey")}
             </button>
-            <span className="small muted">Touch ID、Face ID、Windows Hello、スマホなど / Touch ID, Face ID, Windows Hello, or your phone</span>
+            <span className="small muted">{t("Touch ID、Face ID、Windows Hello、スマホなど", "Touch ID, Face ID, Windows Hello, or your phone")}</span>
           </div>
         </form>
       )}
