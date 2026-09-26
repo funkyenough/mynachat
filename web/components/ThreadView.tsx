@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Avatar from "./Avatar";
+import Editor from "./Editor";
+import Markdown from "./Markdown";
 import WorldIdButton from "./WorldIdButton";
 import { REACTIONS, type Post, type ThreadDetail } from "@/lib/board-shared";
 import { useT } from "./LangProvider";
@@ -13,11 +16,14 @@ const REFRESH_MS = 5_000;
 
 type Props = { groupId: string; memberId: number; initial: ThreadDetail; world: WorldConfig; devFakeWorld: boolean };
 
+/** A Discourse-style topic: the opening post, numbered replies, reactions, and a reply composer. */
 export default function ThreadView({ groupId, memberId, initial, world, devFakeWorld }: Props) {
   const router = useRouter();
+  const { lang, t } = useT();
   const [thread, setThread] = useState(initial);
-  const { t } = useT();
-  const [quote, setQuote] = useState<Post | null>(null);
+  // Unread divider: where this member had read up to when they opened the page (not refreshed).
+  const [lastReadAt] = useState(initial.last_read_at);
+  const [replyTo, setReplyTo] = useState<{ post: Post; n: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
 
@@ -47,45 +53,81 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
   const react = (kind: "t" | "r", id: number, emoji: string) => act(() => api("/api/reactions", { kind, id, emoji }));
   const del = (kind: "t" | "r", id: number) => {
     if (!confirm(t("削除しますか？", "Delete this post?"))) return;
-    if (kind === "t") void api("/api/posts", { kind, id }, "DELETE").then(() => router.push(`/groups/${groupId}`)).catch((e) => setError(errMsg(e)));
-    else void act(() => api("/api/posts", { kind, id }, "DELETE"));
+    if (kind === "t") {
+      void api("/api/posts", { kind, id }, "DELETE").then(() => router.push(`/groups/${groupId}`)).catch((e) => setError(errMsg(e)));
+    } else void act(() => api("/api/posts", { kind, id }, "DELETE"));
   };
-  const reply = (p: Post) => {
-    setQuote(p);
+  const reply = (post: Post, n: number) => {
+    setReplyTo({ post, n });
     composer.current?.focus();
+    composer.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+
+  const live = thread.replies.filter((r) => !r.deleted);
+  const participants = useMemo(() => new Set([thread.post.author, ...live.map((r) => r.author)]).size, [thread, live]);
+  const lastReply = live.at(-1);
+  // First reply by someone else that arrived after the previous visit.
+  const firstUnread =
+    lastReadAt === null ? -1 : thread.replies.findIndex((r) => !r.mine && !r.deleted && r.created_at > lastReadAt);
+  const replyNumber = (id: number) => thread.replies.findIndex((r) => r.id === id) + 2;
 
   return (
-    <div className="stack">
-      <article className="card post op">
-        <h1 className="flush">{thread.title}</h1>
-        <PostBody post={thread.post} />
-        {thread.poll && <PollBox poll={thread.poll} memberId={memberId} world={world} devFakeWorld={devFakeWorld} onVoted={refresh} onError={setError} />}
-        <PostActions post={thread.post} onReact={(e) => react("t", thread.id, e)} onDelete={() => del("t", thread.id)} />
-      </article>
+    <div className="topic">
+      <header className="topic-header">
+        <h1>
+          {thread.poll && <span className="chip">{t("📊 投票", "📊 Poll")}</span>} {thread.title}
+        </h1>
+        <div className="topic-stats">
+          <span><strong>{live.length}</strong> {t("件の返信", live.length === 1 ? "reply" : "replies")}</span>
+          <span><strong>{participants}</strong> {t("人が参加", participants === 1 ? "participant" : "participants")}</span>
+          <span>{t("作成", "Created")} <time title={fmtTime(thread.post.created_at, lang)}>{fmtAgo(thread.post.created_at, lang)}</time></span>
+          {lastReply && (
+            <span>
+              {t("最終返信", "Last reply")} <time title={fmtTime(lastReply.created_at, lang)}>{fmtAgo(lastReply.created_at, lang)}</time>
+            </span>
+          )}
+        </div>
+      </header>
 
-      <h2>{t("返信", "Replies")} ({thread.replies.filter((r) => !r.deleted).length})</h2>
-      {thread.replies.length === 0 && <p className="muted small">{t("まだ返信はありません", "No replies yet.")}</p>}
-      <ol className="replies">
+      <div className="posts">
+        <PostItem
+          post={thread.post}
+          n={1}
+          op
+          opAuthor={thread.post.author}
+          onReact={(e) => react("t", thread.id, e)}
+          onDelete={() => del("t", thread.id)}
+          onReply={() => reply(thread.post, 1)}
+        >
+          {thread.poll && (
+            <PollBox poll={thread.poll} memberId={memberId} world={world} devFakeWorld={devFakeWorld} onVoted={refresh} onError={setError} />
+          )}
+        </PostItem>
+
         {thread.replies.map((r, i) => (
-          <li key={r.id} id={`r${r.id}`} className={`card post${r.deleted ? " deleted" : ""}`}>
-            {r.quote && (
-              <a className="quote small" href={`#r${r.quote.id}`}>
-                <strong>{r.quote.author}</strong>: {r.quote.deleted ? t("（削除されました）", "(deleted)") : r.quote.excerpt}
-              </a>
+          <Fragment key={r.id}>
+            {i === firstUnread && (
+              <div className="unread-divider" role="separator">
+                <span>{t("前回からの新しい投稿", "New since your last visit")}</span>
+              </div>
             )}
-            <PostBody post={r} floor={i + 1} />
-            {!r.deleted && (
-              <PostActions post={r} onReact={(e) => react("r", r.id, e)} onDelete={() => del("r", r.id)} onReply={() => reply(r)} />
-            )}
-          </li>
+            <PostItem
+              post={r}
+              n={i + 2}
+              opAuthor={thread.post.author}
+              replyToN={r.quote ? replyNumber(r.quote.id) : undefined}
+              onReact={(e) => react("r", r.id, e)}
+              onDelete={() => del("r", r.id)}
+              onReply={() => reply(r, i + 2)}
+            />
+          </Fragment>
         ))}
-      </ol>
+      </div>
 
       <ReplyForm
         threadId={thread.id}
-        quote={quote}
-        clearQuote={() => setQuote(null)}
+        replyTo={replyTo}
+        clearReplyTo={() => setReplyTo(null)}
         textarea={composer}
         onPosted={refresh}
       />
@@ -94,41 +136,90 @@ export default function ThreadView({ groupId, memberId, initial, world, devFakeW
   );
 }
 
-function PostBody({ post, floor }: { post: Post; floor?: number }) {
+function PostItem({
+  post,
+  n,
+  op,
+  opAuthor,
+  replyToN,
+  onReact,
+  onDelete,
+  onReply,
+  children,
+}: {
+  post: Post;
+  n: number;
+  op?: boolean;
+  opAuthor: string;
+  replyToN?: number;
+  onReact: (e: string) => void;
+  onDelete: () => void;
+  onReply: () => void;
+  children?: React.ReactNode;
+}) {
   const { lang, t } = useT();
-  return (
-    <>
-      <div className="small muted">
-        {floor && <span className="floor">#{floor} · </span>}
-        <span className="pseudo">{post.author}</span>
-        {post.mine && ` (${t("あなた", "you")})`} · <time title={fmtTime(post.created_at, lang)}>{fmtAgo(post.created_at, lang)}</time>
-      </div>
-      {post.deleted ? (
-        <p className="body">{t("（削除されました）", "(deleted)")}</p>
-      ) : (
-        post.body && <p className="body">{post.body}</p>
-      )}
-    </>
-  );
-}
-
-function PostActions({ post, onReact, onDelete, onReply }: { post: Post; onReact: (e: string) => void; onDelete: () => void; onReply?: () => void }) {
-  const { t } = useT();
+  if (post.deleted) {
+    return (
+      <article className="post deleted" id={`p${n}`}>
+        <div className="post-gutter" />
+        <div className="post-main small muted">
+          #{n} · {t("この投稿は削除されました", "This post was deleted")}
+        </div>
+      </article>
+    );
+  }
   const counts = new Map(post.reactions.map((r) => [r.emoji as string, r]));
   return (
-    <div className="actions row">
-      {REACTIONS.map((e) => {
-        const r = counts.get(e);
-        return (
-          <button key={e} type="button" className={`react${r?.mine ? " on" : ""}`} onClick={() => onReact(e)} aria-pressed={!!r?.mine}>
-            {e} {r ? r.count : ""}
-          </button>
-        );
-      })}
-      <span className="spacer" />
-      {onReply && <button type="button" className="link small" onClick={onReply}>{t("↩ 引用して返信", "↩ Quote")}</button>}
-      {post.mine && <button type="button" className="link small danger" onClick={onDelete}>{t("削除", "Delete")}</button>}
-    </div>
+    <article className={`post${op ? " op" : ""}${post.mine ? " mine" : ""}`} id={`p${n}`}>
+      <div className="post-gutter">
+        <Avatar handle={post.author} size={40} />
+      </div>
+      <div className="post-main">
+        <div className="post-head">
+          <span className="post-author">{post.author}</span>
+          {post.author === opAuthor && <span className="tag-op" title={t("トピック作成者", "Topic author")}>OP</span>}
+          {post.mine && <span className="tag-you">{t("あなた", "you")}</span>}
+          {replyToN && (
+            <a className="reply-ref" href={`#p${replyToN}`}>
+              ↪ #{replyToN}
+            </a>
+          )}
+          <span className="post-spacer" />
+          <time title={fmtTime(post.created_at, lang)}>{fmtAgo(post.created_at, lang)}</time>
+          <a className="post-num" href={`#p${n}`}>#{n}</a>
+        </div>
+        {post.quote && (
+          <a className="post-quote" href={replyToN ? `#p${replyToN}` : undefined}>
+            <span className="post-quote-author">
+              <Avatar handle={post.quote.author} size={18} /> {post.quote.author}
+            </span>
+            <span className="post-quote-text">
+              {post.quote.deleted ? t("（削除されました）", "(deleted)") : post.quote.excerpt}
+            </span>
+          </a>
+        )}
+        {post.body ? <Markdown text={post.body} className="post-body" /> : null}
+        {children}
+        <div className="post-actions">
+          <div className="reactions">
+            {REACTIONS.map((e) => {
+              const r = counts.get(e);
+              return (
+                <button key={e} type="button" className={`react${r?.mine ? " on" : ""}${r ? " has" : ""}`} onClick={() => onReact(e)} aria-pressed={!!r?.mine}>
+                  <span>{e}</span>
+                  {r && <span className="react-n">{r.count}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <span className="post-spacer" />
+          {post.mine && (
+            <button type="button" className="post-btn danger" onClick={onDelete}>{t("削除", "Delete")}</button>
+          )}
+          <button type="button" className="post-btn" onClick={onReply}>↩ {t("返信", "Reply")}</button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -210,10 +301,17 @@ function PollBox({ poll, memberId, world, devFakeWorld, onVoted, onError }: {
   );
 }
 
-function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
+
+function ReplyForm({
+  threadId,
+  replyTo,
+  clearReplyTo,
+  textarea,
+  onPosted,
+}: {
   threadId: number;
-  quote: Post | null;
-  clearQuote: () => void;
+  replyTo: { post: Post; n: number } | null;
+  clearReplyTo: () => void;
   textarea: React.RefObject<HTMLTextAreaElement | null>;
   onPosted: () => Promise<void>;
 }) {
@@ -222,14 +320,16 @@ function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit() {
+    if (!body.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/threads/${threadId}/replies`, { body, quoteId: quote?.id });
+      // Replying to the opening post is a plain reply; replying to a reply quotes it.
+      const quoteId = replyTo && replyTo.n > 1 ? replyTo.post.id : undefined;
+      await api(`/api/threads/${threadId}/replies`, { body, quoteId });
       setBody("");
-      clearQuote();
+      clearReplyTo();
       await onPosted();
       requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
     } catch (err) {
@@ -240,28 +340,35 @@ function ReplyForm({ threadId, quote, clearQuote, textarea, onPosted }: {
   }
 
   return (
-    <form className="card stack composer" onSubmit={submit}>
-      {quote && (
-        <div className="quote small row">
-          <span style={{ flex: 1 }}><strong>{quote.author}</strong>: {quote.body.slice(0, 100)}</span>
-          <button type="button" className="icon" aria-label="cancel quote" onClick={clearQuote}>×</button>
-        </div>
-      )}
-      <textarea
-        ref={textarea}
-        placeholder={t("返信を書く", "Write a reply")}
+    <form
+      className="composer-card reply-composer"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <div className="composer-context small">
+        {replyTo && replyTo.n > 1 ? (
+          <>
+            <span>
+              ↪ {t(`#${replyTo.n} ${replyTo.post.author} さんに返信`, `Replying to #${replyTo.n} ${replyTo.post.author}`)}
+            </span>
+            <button type="button" className="icon" aria-label={t("返信先を解除", "Cancel reply-to")} onClick={clearReplyTo}>×</button>
+          </>
+        ) : (
+          <span>{t("トピックに返信", "Reply to the topic")}</span>
+        )}
+      </div>
+      <Editor
         value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (e.currentTarget.form as HTMLFormElement).requestSubmit();
-        }}
-        maxLength={10000}
-        rows={3}
-        required
+        onChange={setBody}
+        onSubmit={() => void submit()}
+        textareaRef={textarea}
+        rows={4}
+        placeholder={t("返信を書く", "Write a reply")}
       />
-      <div className="row">
+      <div className="composer-actions">
         <button type="submit" disabled={busy || !body.trim()}>{busy ? "…" : t("返信", "Reply")}</button>
-        <span className="small muted">⌘/Ctrl + Enter</span>
         {error && <span className="error small">{error}</span>}
       </div>
     </form>

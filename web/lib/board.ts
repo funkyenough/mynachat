@@ -1,26 +1,70 @@
 import { getDb } from "./db";
 
-import { type Emoji, type Poll, type Post, type Reaction, type ThreadDetail, type ThreadSummary, REACTIONS } from "./board-shared";
+import {
+  type Emoji,
+  type Poll,
+  type Reaction,
+  type ThreadDetail,
+  type ThreadSummary,
+  plainExcerpt,
+  REACTIONS,
+} from "./board-shared";
 
 export * from "./board-shared";
 
-const excerpt = (s: string, n = 140) => (s.length > n ? `${s.slice(0, n)}…` : s);
-
 export async function listThreads(groupId: string, memberId: number): Promise<ThreadSummary[]> {
   const db = await getDb();
-  const rows = db.all<ThreadSummary & { body: string }>(
+  const rows = db.all<Omit<ThreadSummary, "participants" | "last_poster" | "unseen" | "excerpt"> & {
+    body: string; read_at: number | null;
+  }>(
     `SELECT t.id, t.title, t.body, m.handle AS author, t.created_at,
             COUNT(r.id) AS reply_count, MAX(t.created_at, COALESCE(MAX(r.created_at), 0)) AS last_activity,
             EXISTS (SELECT 1 FROM polls p WHERE p.thread_id = t.id) AS has_poll,
-            t.member_id = ? AS mine
+            t.member_id = ? AS mine,
+            (SELECT COUNT(*) FROM reactions x WHERE x.kind = 't' AND x.post_id = t.id) AS likes,
+            (SELECT read_at FROM thread_reads tr WHERE tr.thread_id = t.id AND tr.member_id = ?) AS read_at,
+            SUM(CASE WHEN r.member_id != ? AND r.created_at > COALESCE(
+                  (SELECT read_at FROM thread_reads tr WHERE tr.thread_id = t.id AND tr.member_id = ?), 0)
+                THEN 1 ELSE 0 END) AS new_replies
        FROM threads t JOIN members m ON m.id = t.member_id
        LEFT JOIN replies r ON r.thread_id = t.id AND r.deleted_at IS NULL
       WHERE t.group_id = ? AND t.deleted_at IS NULL
       GROUP BY t.id
       ORDER BY last_activity DESC`,
-    [memberId, groupId],
+    [memberId, memberId, memberId, memberId, groupId],
   );
-  return rows.map(({ body, ...t }) => ({ ...t, excerpt: excerpt(body) }));
+  return rows.map(({ body, read_at, ...t }) => {
+    const repliers = db.all<{ handle: string }>(
+      `SELECT m.handle FROM replies r JOIN members m ON m.id = r.member_id
+        WHERE r.thread_id = ? AND r.deleted_at IS NULL
+        GROUP BY m.id ORDER BY MAX(r.created_at) DESC LIMIT 5`,
+      [t.id],
+    ).map((x) => x.handle);
+    const participants = [t.author, ...repliers.filter((h) => h !== t.author)].slice(0, 5);
+    const unseen = !t.mine && read_at === null;
+    return {
+      ...t,
+      excerpt: plainExcerpt(body),
+      participants,
+      last_poster: repliers[0] ?? t.author,
+      unseen,
+      // Before the first visit everything is new; show "new topic" rather than a reply count.
+      new_replies: unseen ? 0 : t.new_replies,
+    };
+  });
+}
+
+/** Records that the member opened the thread now; returns when they had last opened it. */
+export async function markRead(threadId: number, memberId: number): Promise<number | null> {
+  const db = await getDb();
+  const prev = db.get<{ read_at: number }>(
+    "SELECT read_at FROM thread_reads WHERE thread_id = ? AND member_id = ?", [threadId, memberId])?.read_at ?? null;
+  db.run(
+    `INSERT INTO thread_reads (thread_id, member_id, read_at) VALUES (?, ?, ?)
+       ON CONFLICT (thread_id, member_id) DO UPDATE SET read_at = excluded.read_at`,
+    [threadId, memberId, Date.now()],
+  );
+  return prev;
 }
 
 /** Raw thread row, for access checks. */
@@ -73,7 +117,8 @@ export async function getPoll(threadId: number): Promise<Poll | null> {
   return { id: poll.id, options, total: options.reduce((n, o) => n + o.votes, 0) };
 }
 
-export async function threadDetail(threadId: number, memberId: number): Promise<ThreadDetail | undefined> {
+/** The thread with its posts. With `markAsRead`, also records this visit (see markRead). */
+export async function threadDetail(threadId: number, memberId: number, markAsRead = false): Promise<ThreadDetail | undefined> {
   const db = await getDb();
   const t = db.get<{ id: number; group_id: string; title: string; body: string; author: string; created_at: number; member_id: number }>(
     `SELECT t.id, t.group_id, t.title, t.body, m.handle AS author, t.created_at, t.member_id
@@ -81,6 +126,10 @@ export async function threadDetail(threadId: number, memberId: number): Promise<
     [threadId],
   );
   if (!t) return undefined;
+  const lastReadAt = markAsRead
+    ? await markRead(t.id, memberId)
+    : db.get<{ read_at: number }>("SELECT read_at FROM thread_reads WHERE thread_id = ? AND member_id = ?", [t.id, memberId])
+        ?.read_at ?? null;
   const rows = db.all<{
     id: number; body: string; author: string; created_at: number; member_id: number; deleted_at: number | null;
     quote_id: number | null; q_author: string | null; q_body: string | null; q_deleted: number | null;
@@ -99,6 +148,7 @@ export async function threadDetail(threadId: number, memberId: number): Promise<
     id: t.id,
     group_id: t.group_id,
     title: t.title,
+    last_read_at: lastReadAt,
     post: {
       id: t.id, author: t.author, body: t.body, created_at: t.created_at, deleted: false,
       mine: t.member_id === memberId, quote: null, reactions: tr.get(t.id) ?? [],
@@ -111,7 +161,7 @@ export async function threadDetail(threadId: number, memberId: number): Promise<
       deleted: !!r.deleted_at,
       mine: r.member_id === memberId,
       quote: r.quote_id && r.q_author
-        ? { id: r.quote_id, author: r.q_author, excerpt: r.q_deleted ? "" : excerpt(r.q_body ?? "", 100), deleted: !!r.q_deleted }
+        ? { id: r.quote_id, author: r.q_author, excerpt: r.q_deleted ? "" : plainExcerpt(r.q_body ?? "", 120), deleted: !!r.q_deleted }
         : null,
       reactions: r.deleted_at ? [] : rr.get(r.id) ?? [],
     })),

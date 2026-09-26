@@ -14,7 +14,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ groupId
   const lang = await getLang();
   const group = getGroup(groupId);
   const me = group ? await currentMember(groupId) : undefined;
-  const detail = me ? await threadDetail(Number(threadId), me.id) : undefined;
+  const detail = me ? await threadDetail(Number(threadId), me.id, true) : undefined;
   if (!group || !detail || detail.group_id !== groupId) notFound();
 
   return (

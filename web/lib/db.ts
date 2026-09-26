@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS waitlist (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (icd_code, account_id)
 );
+-- When each member last opened each thread: drives "new" topics and unread reply counts.
+CREATE TABLE IF NOT EXISTS thread_reads (
+  thread_id INTEGER NOT NULL REFERENCES threads(id),
+  member_id INTEGER NOT NULL REFERENCES members(id),
+  read_at   INTEGER NOT NULL,
+  PRIMARY KEY (thread_id, member_id)
+);
 CREATE INDEX IF NOT EXISTS threads_group ON threads(group_id, created_at);
 CREATE INDEX IF NOT EXISTS replies_thread ON replies(thread_id, created_at);
 `;
