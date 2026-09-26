@@ -14,7 +14,11 @@ type Failure = { ok: false; status: number; error: string; extra?: Record<string
 export type WorldIdCheck = { ok: true; nullifier: string } | Failure;
 export type WorldSessionCheck = { ok: true; sessionId: string } | Failure;
 
-const bad = (error: string, extra?: Record<string, unknown>, status = 400): Failure => ({ ok: false, status, error, extra });
+const bad = (error: string, extra?: Record<string, unknown>, status = 400): Failure => {
+  // Reason only (no proof or nullifier values), so failed proofs can be diagnosed from the logs.
+  console.warn(`[world-id] rejected: ${error}${extra ? ` ${JSON.stringify(extra)}` : ""}`);
+  return { ok: false, status, error, extra };
+};
 
 /** RP context for IDKit: signed for one action, or without one for session proofs. */
 export function rpContext(action?: string) {
