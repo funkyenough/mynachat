@@ -31,16 +31,16 @@ workers from `import.meta.url`-relative paths, and bundlers tend to break that.
 
 | file | role |
 |---|---|
-| `content.js` | on `http://localhost:3000/*`: passes `window.postMessage` `MYNA_PROVE_REQUEST` to the service worker, and passes `MYNA_PROVE_PROGRESS` / `MYNA_PROVE_RESULT` back to the page |
+| `content.js` | on `http://localhost:3000/*` (and the hosted origin the build was made for): passes `window.postMessage` `MYNA_PROVE_REQUEST` to the service worker, and passes `MYNA_PROVE_PROGRESS` / `MYNA_PROVE_RESULT` back to the page |
 | `background.js` | reads the `myna.go.jp` cookies (`chrome.cookies`). If there is no `SESSION` cookie, or `/api/common/login/is-login` does not say `isLogin: "true"`, it opens `https://myna.go.jp/` and polls every 2 s until the user has logged in (10 min timeout). Then it starts the offscreen document |
 | `offscreen.html/js` | offscreen document (reason `WORKERS`) that owns the prover worker |
 | `prover-worker.js` | loads the WASM, runs `/prove` (MPC setup), sends the POST through `/relay` to myna.go.jp, finds a matching `drugN`, reveals it, then reads the verdict from `/result` |
-| `match.js` | JSON pair scanner (mirrors `verifier/src/disclosure.rs`) + hayfever stems |
+| `match.js` | JSON pair scanner (mirrors `verifier/src/disclosure.rs`) + the group's drug stems from `catalog.json` |
 
 The Cookie header is sent inside MPC-TLS but never revealed; only the request
 line (byte 0 up to the first CRLF) of the request is disclosed.
 
-Page protocol (see `docs/contracts.md`):
+Page protocol:
 
 ```js
 window.postMessage({ type: 'MYNA_PROVE_REQUEST', sessionId, groupId, method: 'prescription',
@@ -51,8 +51,9 @@ window.postMessage({ type: 'MYNA_PROVE_REQUEST', sessionId, groupId, method: 'pr
 // <- { type: 'MYNA_EXTENSION_READY' } is posted once when the content script loads.
 ```
 
-`verifierUrl` must be a local `ws://localhost` or `ws://127.0.0.1` URL. Only method
-`prescription` is implemented.
+`verifierUrl` must be a local `ws://localhost` or `ws://127.0.0.1` URL, or the `wss://`
+verifier this build was made for (`VERIFIER_URL` at build time, see the top-level README).
+Only method `prescription` is implemented.
 
 ## Manual test
 

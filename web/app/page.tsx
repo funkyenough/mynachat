@@ -30,7 +30,7 @@ const COPY = {
     principlesTitle: "わたしたちの約束",
     principles: [
       ["自己申告ではなく、証明", "データが myna.go.jp から改ざんなく届いたことを、TLSNotary で確かめます。書類の提出はいりません。"],
-      ["1人1アカウント", "World ID で、なりすましや宣伝目的の書き込み、退会処分後の再登録を防ぎます。"],
+      ["1人1アカウント", "World ID で、同じ人が2つ目のアカウントを作れないようにします。なりすましや、複数アカウントを使った宣伝を防ぎます。"],
       ["グループごとに別の名前", "表示名はグループごとに選ぶので、ほかのメンバーがあなたの参加先を結びつけることはできません。"],
       ["パスワードなし", "ログインはパスキー（Touch ID、Face ID、スマートフォン）で。覚えるものも漏れるものもありません。"],
       ["秘密投票", "アンケートは1人1票。誰がどれに投票したかは、運営のサーバーにも残りません。"],
@@ -68,7 +68,7 @@ const COPY = {
     principlesTitle: "What we hold to",
     principles: [
       ["Verified, not self-declared", "TLSNotary confirms the data came from myna.go.jp unaltered. No paperwork or screenshots."],
-      ["One person, one account", "World ID keeps out sock puppets, marketing posts and members who were banned."],
+      ["One person, one account", "World ID stops anyone from opening a second account, which keeps out sock puppets and multi-account marketing."],
       ["A different name in every group", "You choose a display name per group, so other members can't connect the groups you're in."],
       ["No passwords", "Log in with a passkey: Touch ID, Face ID or your phone. Nothing to remember, nothing to leak."],
       ["Secret ballots", "Polls allow one vote per person. Not even our server keeps who voted for what."],

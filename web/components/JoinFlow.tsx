@@ -206,7 +206,7 @@ export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: P
                 {!m.available && (
                   <span className="muted small">
                     {" "}
-                    ({m.id === "diagnosis" ? t("2027年予定", "coming 2027") : (m.note ?? t("利用不可", "unavailable"))})
+                    ({m.id === "diagnosis" ? t("2027年予定", "coming 2027") : t("準備中", "coming soon")})
                   </span>
                 )}
               </span>

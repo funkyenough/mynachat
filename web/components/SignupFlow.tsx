@@ -116,8 +116,8 @@ export default function SignupFlow({ world, next, devFakeWorld }: Props) {
           <h2 className="flush">{t("1. World ID で本人確認", "1. Verify with World ID")}</h2>
           <p className="small muted">
             {t(
-              "1人につき1アカウントだけ作れます。あなたが誰かは分かりませんが、同じ人が2つ目のアカウントを作ることはできません。退会処分を受けた人が別アカウントで戻ってくることも防ぎます。",
-              "One account per human. We learn nothing about who you are, only that you haven't made an account before. This keeps sock puppets and banned users out of patient communities.",
+              "1人につき1アカウントだけ作れます。あなたが誰かは分かりませんが、同じ人が2つ目のアカウントを作ることはできません。なりすましの複数アカウントを患者コミュニティから締め出します。",
+              "One account per human. We learn nothing about who you are, only that you haven't made an account before. This keeps sock puppets out of patient communities.",
             )}
           </p>
           <div className="row">

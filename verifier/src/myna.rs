@@ -1,4 +1,4 @@
-//! Myna Portal request definitions (see docs/contracts.md).
+//! Myna Portal request definitions.
 
 pub const SERVER_NAME: &str = "myna.go.jp";
 pub const RELAY_TARGET: &str = "myna.go.jp:443";

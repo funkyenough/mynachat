@@ -27,5 +27,6 @@ verifier/audit/
 # Extension builds for sharing
 extension/*.zip
 
-# Screenshot tooling state
+# Screenshot tooling state and output
 web/scripts/screenshots/.profile/
+/screenshots/

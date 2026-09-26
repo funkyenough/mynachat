@@ -54,7 +54,7 @@ export default async function DiseasePage({ params }: { params: Promise<{ code: 
                 )}
               </div>
               <div className="small muted">
-                {t("証明方法: ", "Proof: ")}{g.methods.map((m) => getMethod(m).name[lang]).join(t("、", ", "))}
+                {t("証明方法: ", "Proof: ")}{g.methods.map((m) => getMethod(m).name[lang] + (getMethod(m).available ? "" : t("（準備中）", " (coming soon)"))).join(t("、", ", "))}
               </div>
             </div>
           ))}

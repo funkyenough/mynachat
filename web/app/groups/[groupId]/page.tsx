@@ -53,7 +53,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
           {group.description && <p className="small muted">{group.description[lang]}</p>}
           <p className="small muted">
             {t("証明方法: ", "Proof: ")}
-            {group.methods.map((m) => getMethod(m).name[lang]).join(t("、", ", "))}
+            {group.methods.map((m) => getMethod(m).name[lang] + (getMethod(m).available ? "" : t("（準備中）", " (coming soon)"))).join(t("、", ", "))}
           </p>
           <div>
             <Link className="button" href={`/groups/${groupId}/join`}>{t("参加する", "Join")}</Link>

@@ -1,7 +1,9 @@
 // Captures submission screenshots from the seeded local app (see seed.mjs).
+import fs from "node:fs";
 import puppeteer from "puppeteer-core";
 
-const OUT = new URL("../../../docs/screenshots", import.meta.url).pathname;
+const OUT = new URL("../../../screenshots", import.meta.url).pathname; // git-ignored
+fs.mkdirSync(OUT, { recursive: true });
 const BASE = "http://localhost:3000";
 const DESKTOP = { width: 1440, height: 900, deviceScaleFactor: 2 };
 const MOBILE = { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true };

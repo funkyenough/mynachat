@@ -1,7 +1,7 @@
 # Submission screenshots
 
 Seeds a separate local database with realistic sample content, then captures
-`docs/screenshots/*.png` with headless Chrome (2× desktop, 3× mobile, light theme).
+`screenshots/*.png` (repo root, git-ignored) with headless Chrome (2× desktop, 3× mobile, light theme).
 All content is invented; no real accounts or health data.
 
 ```bash

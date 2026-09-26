@@ -11,13 +11,13 @@
       "name": { "ja": "指定難病の認定", "en": "指定難病 certification" },
       "source": "/api/my/selfinfo/get (TM00000000000082)",
       "strength": "certified",
-      "available": true
+      "available": false
     },
     "pmh": {
       "name": { "ja": "医療受給者証 (PMH)", "en": "Medical subsidy certificate (PMH)" },
       "source": "/api/my/pmh-info/send-medicalsubsidy/v3",
       "strength": "certified",
-      "available": true
+      "available": false
     },
     "diagnosis": {
       "name": { "ja": "傷病名 (電子カルテ)", "en": "Diagnosis record (EHR)" },
