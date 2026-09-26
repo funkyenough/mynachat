@@ -1,5 +1,5 @@
 // Bridge between the web app (window.postMessage) and the extension service worker.
-// Runs on http://localhost:3000/* only.
+// Runs on http://localhost:3000/* and any hosted origin added at build time (build.mjs).
 
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;

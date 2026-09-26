@@ -1,0 +1,47 @@
+# Whole stack on one host: Caddy (HTTPS) -> web, and wss://$DOMAIN/verifier -> verifier.
+# Usage: cp .env.example .env, fill it in, then: docker compose up -d --build
+services:
+  web:
+    build: { context: .., dockerfile: web/Dockerfile }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /data/mynachat.sqlite
+      VERIFIER_URL: wss://${DOMAIN}/verifier
+      WEBAUTHN_RP_ID: ${DOMAIN}
+      WEBAUTHN_ORIGIN: https://${DOMAIN}
+      VERIFIER_AUDIT_DIR: /audit
+      AUDIT_ENABLED: "1"
+      DEV_FAKE_MYNA: "0"
+      DEV_FAKE_WORLD_ID: "0"
+    volumes:
+      - web-data:/data
+      - audit:/audit:ro
+
+  verifier:
+    build: { context: .., dockerfile: verifier/Dockerfile }
+    restart: unless-stopped
+    environment:
+      WEB_URL: http://web:3000
+      VERIFIER_SHARED_SECRET: ${VERIFIER_SHARED_SECRET}
+      RUST_LOG: info,yamux=warn,tlsn_mux=warn
+    volumes:
+      - audit:/audit
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [web, verifier]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  web-data:
+  audit:
+  caddy-data:
+  caddy-config:

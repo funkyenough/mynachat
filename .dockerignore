@@ -1,0 +1,17 @@
+# Never ship personal data, secrets or local state into an image.
+myna_data
+**/.env
+**/.env.local
+**/.env.*.local
+web/data
+verifier/audit
+docs/submission
+
+# Build outputs and dependencies (rebuilt inside the image).
+**/node_modules
+web/.next
+**/target
+extension/dist
+.git
+.claude
+**/.DS_Store

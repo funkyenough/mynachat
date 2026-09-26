@@ -1,54 +1,59 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import PostForm from "@/components/PostForm";
+import Board from "@/components/Board";
+import { currentAccount, memberOf } from "@/lib/auth";
 import { listThreads } from "@/lib/board";
-import { fmtTime } from "@/lib/format";
-import { getGroup } from "@/lib/groups";
-import { currentMember } from "@/lib/members";
+import { getDb } from "@/lib/db";
+import { getCode } from "@/lib/icd10";
+import { getGroup, getMethod } from "@/lib/groups";
 
 export const dynamic = "force-dynamic";
 
-export default async function BoardPage({ params }: { params: Promise<{ groupId: string }> }) {
+export default async function GroupPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const group = getGroup(groupId);
   if (!group) notFound();
-  const me = await currentMember(groupId);
+  const me = await currentAccount();
+  const member = me ? await memberOf(me.id, groupId) : undefined;
+  const count = (await getDb()).get<{ n: number }>("SELECT COUNT(*) AS n FROM members WHERE group_id = ?", [groupId])?.n ?? 0;
 
   return (
     <>
-      <p className="small"><Link href="/">← グループ一覧 / Groups</Link></p>
-      <h1>{group.name.ja} / {group.name.en}</h1>
-      {!me ? (
-        <div className="card">
-          <p>この掲示板はメンバーのみ閲覧できます。<br />This board is visible to members only.</p>
-          <Link className="button" href={`/groups/${groupId}/join`}>参加する / Join</Link>
-        </div>
-      ) : (
-        <Board groupId={groupId} pseudonym={me.pseudonym} />
-      )}
-    </>
-  );
-}
-
-async function Board({ groupId, pseudonym }: { groupId: string; pseudonym: string }) {
-  const threads = await listThreads(groupId);
-  return (
-    <>
-      <p className="muted small">あなたの匿名 ID / Your pseudonym: <span className="pseudo">#{pseudonym}</span></p>
-      <h2>新しいスレッド / New thread</h2>
-      <PostForm url={`/api/groups/${groupId}/threads`} withTitle />
-      <h2>スレッド / Threads</h2>
-      {threads.length === 0 && <p className="muted">まだ投稿はありません / No threads yet.</p>}
-      <div className="stack">
-        {threads.map((t) => (
-          <div className="card" key={t.id}>
-            <Link href={`/groups/${groupId}/threads/${t.id}`}><strong>{t.title}</strong></Link>
-            <div className="small muted">
-              <span className="pseudo">#{t.author}</span> · {fmtTime(t.created_at)} · 返信 {t.reply_count} replies
-            </div>
+      <header className="group-head">
+        <div>
+          <h1 className="flush">{group.name.ja} <span className="muted">/ {group.name.en}</span></h1>
+          <div className="row small muted">
+            {group.icd10.map((c) => (
+              <Link key={c} href={`/disease/${c}`} className="code" title={getCode(c)?.ja}>{c}</Link>
+            ))}
+            <span>👥 {count} 人のメンバー / members</span>
           </div>
-        ))}
-      </div>
+        </div>
+        {member && (
+          <div className="small muted right">
+            あなたの表示名 / You are
+            <br />
+            <span className="pseudo">{member.handle}</span>
+          </div>
+        )}
+      </header>
+
+      {member ? (
+        <Board groupId={groupId} initial={await listThreads(groupId, member.id)} />
+      ) : (
+        <div className="card stack">
+          <p>
+            🔒 この掲示板はメンバーだけが読めます。マイナポータルのデータで参加資格を証明すると参加できます。
+            <br />
+            This board is for members only. Join by proving eligibility from your own Myna Portal data.
+          </p>
+          {group.description && <p className="small muted">{group.description.ja} / {group.description.en}</p>}
+          <p className="small muted">証明方法 / Proof: {group.methods.map((m) => getMethod(m).name.ja).join("、")}</p>
+          <div>
+            <Link className="button" href={`/groups/${groupId}/join`}>参加する / Join</Link>
+          </div>
+        </div>
+      )}
     </>
   );
 }

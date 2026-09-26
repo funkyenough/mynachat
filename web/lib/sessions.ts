@@ -6,21 +6,24 @@ export type SessionState = "pending" | "myna_verified" | "failed" | "member";
 
 export type Session = {
   id: string;
+  account_id: number;
   group_id: string;
   method: string;
+  handle: string;
   state: SessionState;
   error: string | null;
   myna_nullifier: string | null;
   created_at: number;
 };
 
-export async function createSession(groupId: string, method: string): Promise<string> {
+export async function createSession(accountId: number, groupId: string, method: string, handle: string): Promise<string> {
   const db = await getDb();
   const id = crypto.randomBytes(32).toString("base64url");
   const now = Date.now();
   db.run(
-    "INSERT INTO sessions (id, group_id, method, state, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?)",
-    [id, groupId, method, now, now],
+    `INSERT INTO sessions (id, account_id, group_id, method, handle, state, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    [id, accountId, groupId, method, handle, now, now],
   );
   return id;
 }

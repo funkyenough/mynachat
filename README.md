@@ -1,4 +1,4 @@
-# mynamedical
+# mynachat
 
 Lets a patient-group member prove, from their own Myna Portal session, that they hold a specific certification (e.g. 指定難病), without revealing their records or their identity to the group.
 

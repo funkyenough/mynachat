@@ -23,3 +23,6 @@ dist/
 
 # Verifier audit records (contain revealed data)
 verifier/audit/
+
+# Extension builds for sharing
+extension/*.zip

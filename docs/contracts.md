@@ -12,10 +12,29 @@ Layout:
 
 Local ports: web `http://localhost:3000`, verifier `ws://localhost:7047`.
 
-## Enrollment flow
+## Accounts (once per human)
 
 ```
-web            POST /api/enroll/start {groupId, method}         -> {sessionId}
+web   POST /api/signup/start                              -> {signupId}
+web   POST /api/world-id/context {purpose:"account", signupId}
+                                                          -> {rpContext, action:"account", signal: signupId}
+web   IDKit (credential WLD_CREDENTIAL, default mnc), then
+      POST /api/signup/world-id {signupId, idkitResult}  -> {existing: {username} | null}
+        verifies with developer.world.org; the "account" nullifier is one per human.
+        existing != null means recovery: the next step adds a passkey to that account.
+web   POST /api/passkey/register/options {signupId, username?} -> {challengeId, options}
+      navigator.credentials.create (SimpleWebAuthn)
+      POST /api/passkey/register/verify {challengeId, response} -> creates account, sets mnd_login cookie
+```
+
+Daily login: `POST /api/passkey/login/options` -> discoverable-credential `navigator.credentials.get`
+-> `POST /api/passkey/login/verify`. Logged-in users can add passkeys (`register/options` with `{}`).
+
+## Group join (per group, logged in)
+
+```
+web            POST /api/enroll/start {groupId, method, handle}  -> {sessionId}
+                 handle = per-group display name (unique per group, never linked across groups)
 web -> ext     window.postMessage {type:"MYNA_PROVE_REQUEST", sessionId, groupId, method, verifierUrl}
 ext            opens https://myna.go.jp, waits for SESSION cookie, runs MPC-TLS with verifier
 ext <-> verifier   ws://localhost:7047/prove?sessionId=..&groupId=..&method=..
@@ -23,20 +42,22 @@ verifier -> web POST /api/internal/myna-proof  (header x-verifier-secret)
                {sessionId, groupId, method, passed, evidence, mynaNullifier, verifiedAt}
 ext -> web     window.postMessage {type:"MYNA_PROVE_RESULT", sessionId, passed, error?}
 web            GET /api/enroll/status?sessionId -> {state: "pending"|"myna_verified"|"failed"|"member"}
-web            IDKit: action "join-<groupId>", signal = sessionId, environment "staging"
-web            POST /api/verify-world-id {sessionId, idkitResult}
-               -> backend forwards to https://developer.world.org/api/v4/verify/{rp_id},
-                  checks signal == sessionId, session is myna_verified for that group,
-                  nullifier unused for action -> creates member
+web            POST /api/enroll/complete {sessionId} -> member of the group (session must belong to the account)
 ```
+
+## World ID actions
+
+| action | when | signal | stored |
+|---|---|---|---|
+| `account` | signup / recovery | signupId | `accounts.world_nullifier` (one account per human) |
+| `poll-<id>` | voting in a board poll | `vote:<optionId>` | `poll_votes` keyed by nullifier only (secret ballot, no member id) |
 
 - The web page talks to the extension only through `window.postMessage`; the
   extension injects a content script on `http://localhost:3000/*` that bridges to
   its service worker. No extension ID is needed in the web app.
 - `x-verifier-secret` = env `VERIFIER_SHARED_SECRET` (same value in `web/.env.local`
   and the verifier's env).
-- Member pseudonym on the board = the World ID nullifier for `join-<groupId>`
-  (display a short form, e.g. first 8 hex chars of its hash).
+- Board name = the member's per-group handle. The login username is never shown on boards.
 - `mynaNullifier`: hex hash committed from the 住民票 (ID 1) name + DOB bytes. Optional
   in the first spike (null until implemented); when present, the backend rejects a
   second member in the same group with the same value.

@@ -2,26 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CredentialRequest,
-  IDKitRequestWidget,
-  deviceLegacy,
-  orbLegacy,
-  type IDKitResult,
-  type RpContext,
-} from "@worldcoin/idkit";
-import type { WorldCredential } from "@/lib/config";
-
-/**
- * World ID 4.0 credentials are requested as a bare constraint: IDKit's presets for them
- * (mnc(), passport(), proofOfHuman()) carry a 3.0 fallback that World App answers with
- * an Orb proof. The *_legacy options use the 3.0 presets on purpose.
- */
-function worldRequest(credential: WorldCredential, signal: string) {
-  if (credential === "orb_legacy") return { preset: orbLegacy({ signal }) };
-  if (credential === "device_legacy") return { preset: deviceLegacy({ signal }) };
-  return { constraints: CredentialRequest(credential, { signal }) };
-}
+import Steps from "./Steps";
+import { api, errMsg } from "@/lib/api";
 
 export type MethodOption = {
   id: string;
@@ -33,9 +15,6 @@ export type MethodOption = {
 type Props = {
   group: { id: string; name: { ja: string; en: string } };
   methods: MethodOption[];
-  appId: `app_${string}`;
-  environment: "production" | "staging";
-  credential: WorldCredential;
   verifierUrl: string;
   devFakeMyna: boolean;
 };
@@ -53,21 +32,15 @@ const STAGE_LABELS: Record<string, string> = {
   submitting: "結果を送信中 / Submitting result",
 };
 
-async function postJson(url: string, body: unknown) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-  return data;
-}
+const WORDS = ["sakura", "kaede", "sora", "umi", "hoshi", "kumo", "mori", "yuki", "tsuki", "kaze"];
+const randomHandle = () =>
+  `${WORDS[Math.floor(Math.random() * WORDS.length)]}-${Math.random().toString(16).slice(2, 6)}`;
 
-export default function JoinFlow({ group, methods, appId, environment, credential, verifierUrl, devFakeMyna }: Props) {
+/** Joining a group, for a logged-in account: display name + method, then the Myna Portal proof. */
+export default function JoinFlow({ group, methods, verifierUrl, devFakeMyna }: Props) {
   const router = useRouter();
-  const firstAvailable = methods.find((m) => m.available)?.id ?? "";
-  const [method, setMethod] = useState(firstAvailable);
+  const [method, setMethod] = useState(methods.find((m) => m.available)?.id ?? "");
+  const [handle, setHandle] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [state, setState] = useState<EnrollState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +48,9 @@ export default function JoinFlow({ group, methods, appId, environment, credentia
   const [extensionSeen, setExtensionSeen] = useState(false);
   const [extensionMissing, setExtensionMissing] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const [rpContext, setRpContext] = useState<RpContext | null>(null);
-  const [widgetOpen, setWidgetOpen] = useState(false);
   const extTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => setHandle(randomHandle()), []);
 
   // Messages from the extension's content script. Attached once; filtered by the current session.
   const sessionRef = useRef<string | null>(null);
@@ -111,8 +83,7 @@ export default function JoinFlow({ group, methods, appId, environment, credentia
     if (!sessionId || state !== "pending") return;
     const t = setInterval(async () => {
       try {
-        const res = await fetch(`/api/enroll/status?sessionId=${encodeURIComponent(sessionId)}`);
-        const d = await res.json();
+        const d = await api(`/api/enroll/status?sessionId=${encodeURIComponent(sessionId)}`);
         if (d.state && d.state !== "pending") {
           setState(d.state);
           if (d.error) setError(d.error);
@@ -124,106 +95,138 @@ export default function JoinFlow({ group, methods, appId, environment, credentia
     return () => clearInterval(t);
   }, [sessionId, state]);
 
-  // Once Myna-verified, fetch the RP signature for IDKit.
+  // Eligibility proven: become a member and go to the board.
   useEffect(() => {
-    if (!sessionId || state !== "myna_verified" || rpContext) return;
-    postJson("/api/rp-signature", { sessionId })
-      .then((d) =>
-        setRpContext({
-          rp_id: d.rp_id,
-          nonce: d.nonce,
-          created_at: d.created_at,
-          expires_at: d.expires_at,
-          signature: d.sig,
-        }),
-      )
-      .catch((e) => setError(`RP signature: ${e.message}`));
-  }, [sessionId, state, rpContext]);
+    if (!sessionId || state !== "myna_verified") return;
+    api("/api/enroll/complete", { sessionId })
+      .then(() => {
+        setState("member");
+        router.push(`/groups/${group.id}`);
+        router.refresh();
+      })
+      .catch((e) => setError(errMsg(e)));
+  }, [sessionId, state, group.id, router]);
 
-  const startProof = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    setStages([]);
-    setExtensionSeen(false);
-    setExtensionMissing(false);
-    setRpContext(null);
-    try {
-      const { sessionId } = await postJson("/api/enroll/start", { groupId: group.id, method });
-      sessionRef.current = sessionId;
-      setSessionId(sessionId);
-      setState("pending");
-      window.postMessage(
-        { type: "MYNA_PROVE_REQUEST", sessionId, groupId: group.id, method, verifierUrl },
-        window.location.origin,
-      );
-      if (extTimer.current) clearTimeout(extTimer.current);
-      extTimer.current = setTimeout(() => setExtensionMissing(true), EXTENSION_TIMEOUT_MS);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [group.id, method, verifierUrl]);
+  const startProof = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setBusy(true);
+      setError(null);
+      setStages([]);
+      setExtensionSeen(false);
+      setExtensionMissing(false);
+      try {
+        const { sessionId } = await api("/api/enroll/start", { groupId: group.id, method, handle });
+        sessionRef.current = sessionId;
+        setSessionId(sessionId);
+        setState("pending");
+        window.postMessage(
+          { type: "MYNA_PROVE_REQUEST", sessionId, groupId: group.id, method, verifierUrl },
+          window.location.origin,
+        );
+        if (extTimer.current) clearTimeout(extTimer.current);
+        extTimer.current = setTimeout(() => setExtensionMissing(true), EXTENSION_TIMEOUT_MS);
+      } catch (err) {
+        setError(errMsg(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [group.id, method, handle, verifierUrl],
+  );
 
   const fakeMyna = useCallback(async () => {
     if (!sessionId) return;
     try {
-      await postJson("/api/dev/fake-myna", { sessionId });
+      await api("/api/dev/fake-myna", { sessionId });
       setExtensionMissing(false);
       setState("myna_verified");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errMsg(e));
     }
   }, [sessionId]);
 
-  const handleVerify = useCallback(
-    async (idkitResult: IDKitResult) => {
-      await postJson("/api/verify-world-id", { sessionId, idkitResult });
-    },
-    [sessionId],
-  );
-
   const proving = state === "pending";
-  const mynaDone = state === "myna_verified" || state === "member";
+  const started = state !== null && state !== "failed";
 
   return (
     <div className="stack">
-      <h2>1. 証明方法 / Proof method</h2>
-      <div className="stack">
-        {methods.map((m) => (
-          <label key={m.id} className={`option${m.available ? "" : " disabled"}`}>
-            <input
-              type="radio"
-              name="method"
-              value={m.id}
-              disabled={!m.available || proving || mynaDone}
-              checked={method === m.id}
-              onChange={() => setMethod(m.id)}
-            />
-            <span>
-              {m.name.ja} / {m.name.en}
-              {!m.available && (
-                <span className="muted small"> ({m.id === "diagnosis" ? "coming 2027" : m.note ?? "unavailable"})</span>
-              )}
-            </span>
-          </label>
-        ))}
-      </div>
+      <Steps
+        steps={[
+          { label: "アカウント / Account", state: "done" },
+          { label: "表示名・方法 / Name & method", state: started ? "done" : "current" },
+          {
+            label: "マイナで証明 / Prove",
+            state: state === "myna_verified" || state === "member" ? "done" : started ? "current" : "todo",
+          },
+          { label: "参加 / Join", state: state === "member" ? "done" : state === "myna_verified" ? "current" : "todo" },
+        ]}
+      />
 
-      <h2>2. マイナポータルで証明 / Prove with Myna Portal</h2>
-      <div className="card stack">
+      <form className="card stack" onSubmit={startProof}>
+        <h2 className="flush">表示名 / Display name in this group</h2>
         <div className="row">
-          <button onClick={startProof} disabled={!method || busy || proving || mynaDone}>
+          <input
+            type="text"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            maxLength={20}
+            minLength={2}
+            required
+            disabled={started}
+            style={{ flex: 1, minWidth: 160 }}
+          />
+          <button type="button" className="secondary" onClick={() => setHandle(randomHandle())} disabled={started}>
+            🎲 ランダム / Random
+          </button>
+        </div>
+        <p className="small muted">
+          このグループだけで使う名前です。他のグループやユーザー名とは結びつきません。
+          <br />
+          Used only in this group, and never linked to your username or your other groups.
+        </p>
+
+        <h2>証明方法 / Proof method</h2>
+        <div className="stack">
+          {methods.map((m) => (
+            <label key={m.id} className={`option${m.available ? "" : " disabled"}`}>
+              <input
+                type="radio"
+                name="method"
+                value={m.id}
+                disabled={!m.available || started}
+                checked={method === m.id}
+                onChange={() => setMethod(m.id)}
+              />
+              <span>
+                {m.name.ja} / {m.name.en}
+                {!m.available && (
+                  <span className="muted small">
+                    {" "}
+                    ({m.id === "diagnosis" ? "coming 2027" : (m.note ?? "unavailable")})
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <p className="small muted">
+          マイナポータルの自分のデータから、参加条件を満たすことだけを証明します。記録そのものはグループに送られません。
+          <br />
+          Proves only that your own Myna Portal data meets the group&apos;s criteria. Your records are never sent to the
+          group.
+        </p>
+        <div className="row">
+          <button type="submit" disabled={!method || busy || started}>
             {state === "failed" ? "もう一度 / Try again" : "マイナポータルで証明 / Prove with Myna Portal"}
           </button>
-          {mynaDone && <span className="ok">✓ 資格を確認しました / Eligibility verified</span>}
           {proving && <span className="muted">証明中… / Proving…</span>}
+          {(state === "myna_verified" || state === "member") && (
+            <span className="ok">✓ 資格を確認しました / Eligibility verified</span>
+          )}
         </div>
-        {sessionId && (mynaDone || state === "failed") && (
-          <a className="small" href={`/audit/${sessionId}`} target="_blank" rel="noreferrer">
-            証明の監査レポート / Proof audit report →
-          </a>
-        )}
+
         {stages.length > 0 && (
           <ul className="steps small">
             {stages.map((s) => (
@@ -233,60 +236,28 @@ export default function JoinFlow({ group, methods, appId, environment, credentia
         )}
         {proving && extensionMissing && (
           <p className="small">
-            拡張機能から応答がありません。mynamedical Chrome 拡張機能をインストールして有効にし、このページを再読み込みしてください。
+            拡張機能から応答がありません。mynachat Chrome
+            拡張機能をインストールして有効にし、このページを再読み込みしてください。
             <br />
-            No response from the extension. Install and enable the mynamedical Chrome extension, then reload this page.
+            No response from the extension. Install and enable the mynachat Chrome extension, then reload this page.
           </p>
         )}
         {devFakeMyna && proving && (
           <div className="card dev small row">
             <span>DEV_FAKE_MYNA=1</span>
-            <button className="secondary" onClick={fakeMyna}>Fake Myna verification (dev)</button>
+            <button type="button" className="secondary" onClick={fakeMyna}>
+              Fake Myna verification (dev)
+            </button>
           </div>
         )}
-      </div>
-
-      <h2>3. World ID で本人確認 / Verify with World ID</h2>
-      <div className="card stack">
-        <p className="small muted">
-          一人一回だけ参加できるようにするためです。掲示板の匿名 ID はこのグループ専用です。
-          <br />
-          Ensures one membership per person. Your board pseudonym is unique to this group.
-        </p>
-        <div className="row">
-          <button onClick={() => setWidgetOpen(true)} disabled={state !== "myna_verified" || !rpContext}>
-            World ID で確認 / Verify with World ID
-          </button>
-          {state === "myna_verified" && !rpContext && !error && <span className="muted small">準備中… / Preparing…</span>}
-        </div>
-        {environment === "staging" && (
-          <p className="small muted">
-            Staging: use the simulator at{" "}
-            <a href="https://simulator.worldcoin.org/" target="_blank" rel="noreferrer">simulator.worldcoin.org</a>.
-          </p>
+        {sessionId && state !== "pending" && (
+          <a className="small" href={`/audit/${sessionId}`} target="_blank" rel="noreferrer">
+            証明の監査レポート / Proof audit report →
+          </a>
         )}
-      </div>
+      </form>
 
       {error && <p className="error">{error}</p>}
-
-      {rpContext && sessionId && (
-        <IDKitRequestWidget
-          open={widgetOpen}
-          onOpenChange={setWidgetOpen}
-          app_id={appId}
-          action={`join-${group.id}`}
-          rp_context={rpContext}
-          allow_legacy_proofs={credential.endsWith("_legacy")}
-          environment={environment}
-          {...worldRequest(credential, sessionId)}
-          handleVerify={handleVerify}
-          onSuccess={() => {
-            router.push(`/groups/${group.id}`);
-            router.refresh();
-          }}
-          onError={(code) => setError(`World ID: ${code}`)}
-        />
-      )}
     </div>
   );
 }

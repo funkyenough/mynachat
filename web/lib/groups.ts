@@ -17,6 +17,7 @@ export type Group = {
   name: Bilingual;
   description?: Bilingual;
   methods: string[]; // method ids the group accepts
+  icd10: string[]; // ICD-10 codes the group covers ([] = not tied to one disease)
 };
 
 type Catalog = { methods: Record<string, MethodInfo>; groups: Group[] };
@@ -33,8 +34,8 @@ const FALLBACK: Catalog = {
     },
   },
   groups: [
-    { id: "hayfever", name: { ja: "花粉症", en: "Hay fever" }, methods: ["prescription"] },
-    { id: "nanbyo-any", name: { ja: "指定難病（全般）", en: "指定難病 (any)" }, methods: ["nanbyo"] },
+    { id: "hayfever", name: { ja: "花粉症", en: "Hay fever" }, methods: ["prescription"], icd10: ["J30.1", "J30.2"] },
+    { id: "nanbyo-any", name: { ja: "指定難病（全般）", en: "指定難病 (any)" }, methods: ["nanbyo"], icd10: [] },
   ],
 };
 
@@ -61,6 +62,7 @@ function parseCatalog(raw: any): Catalog {
     name: bilingual(g.name, String(g.id)),
     description: g.description ? bilingual(g.description, "") : undefined,
     methods: Array.isArray(g.methods) ? g.methods.map(String) : Object.keys(g.methods ?? {}),
+    icd10: Array.isArray(g.icd10) ? g.icd10.map(String) : [],
   }));
   return { methods, groups };
 }
@@ -88,4 +90,9 @@ export const getMethod = (id: string): MethodInfo =>
 export function groupAcceptsMethod(groupId: string, method: string): boolean {
   const g = getGroup(groupId);
   return !!g && g.methods.includes(method) && getMethod(method).available;
+}
+
+/** Groups for an ICD-10 code: a group covering the code, one of its subcodes, or its parent category. */
+export function groupsForCode(code: string): Group[] {
+  return listGroups().filter((g) => g.icd10.some((c) => c.startsWith(code) || code.startsWith(c)));
 }

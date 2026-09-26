@@ -2,7 +2,7 @@
 name = "criteria"
 version = "0.1.0"
 edition = "2021"
-description = "Eligibility criteria for mynamedical groups, evaluated on revealed Myna Portal data"
+description = "Eligibility criteria for mynachat groups, evaluated on revealed Myna Portal data"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

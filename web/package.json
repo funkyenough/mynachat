@@ -1,5 +1,5 @@
 {
-  "name": "mynamedical-web",
+  "name": "mynachat-web",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -8,6 +8,8 @@
     "start": "next start -p 3000"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "14.0.0",
+    "@simplewebauthn/server": "14.0.0",
     "@worldcoin/idkit": "4.3.0",
     "@worldcoin/idkit-core": "4.3.0",
     "next": "~15.5.26",

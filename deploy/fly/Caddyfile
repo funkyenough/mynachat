@@ -1,0 +1,18 @@
+# Plain HTTP inside the machine; Fly's proxy terminates TLS in front of it.
+{
+	auto_https off
+	admin off
+}
+
+:8080 {
+	encode gzip
+
+	# Prover extension: wss://<app>.fly.dev/verifier/{prove,relay,result}
+	handle_path /verifier/* {
+		reverse_proxy 127.0.0.1:7047
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

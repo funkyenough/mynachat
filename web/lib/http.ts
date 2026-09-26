@@ -12,3 +12,7 @@ export async function readJson(req: Request): Promise<Record<string, any> | null
     return null;
   }
 }
+
+/** A same-site path to return to after login, or "/". */
+export const safeNext = (v: string | string[] | undefined) =>
+  typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : "/";

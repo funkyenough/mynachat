@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import JoinFlow, { type MethodOption } from "@/components/JoinFlow";
+import Steps from "@/components/Steps";
+import { currentAccount, memberOf } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { getGroup, getMethod } from "@/lib/groups";
-import { currentMember } from "@/lib/members";
 
 export const dynamic = "force-dynamic";
 
@@ -11,19 +12,9 @@ export default async function JoinPage({ params }: { params: Promise<{ groupId: 
   const { groupId } = await params;
   const group = getGroup(groupId);
   if (!group) notFound();
-
-  const me = await currentMember(groupId);
-  if (me) {
-    return (
-      <>
-        <h1>{group.name.ja} / {group.name.en}</h1>
-        <p>
-          すでに参加しています / You are already a member as <span className="pseudo">#{me.pseudonym}</span>.{" "}
-          <Link href={`/groups/${groupId}`}>掲示板へ / Go to board</Link>
-        </p>
-      </>
-    );
-  }
+  const me = await currentAccount();
+  if (me && (await memberOf(me.id, groupId))) redirect(`/groups/${groupId}`);
+  const here = `/groups/${groupId}/join`;
 
   // Group's methods, plus "diagnosis" always listed (disabled until the EHR service exists).
   const ids = group.methods.includes("diagnosis") ? group.methods : [...group.methods, "diagnosis"];
@@ -33,19 +24,34 @@ export default async function JoinPage({ params }: { params: Promise<{ groupId: 
   });
 
   return (
-    <>
-      <p className="small"><Link href="/">← グループ一覧 / Groups</Link></p>
-      <h1>{group.name.ja} / {group.name.en}</h1>
-      {group.description && <p className="muted">{group.description.ja} / {group.description.en}</p>}
-      <JoinFlow
-        group={{ id: group.id, name: group.name }}
-        methods={methods}
-        appId={config.appId}
-        environment={config.environment}
-        credential={config.credential}
-        verifierUrl={config.verifierUrl}
-        devFakeMyna={config.devFakeMyna}
-      />
-    </>
+    <div className="narrow">
+      <p className="small"><Link href={`/groups/${groupId}`}>← {group.name.ja} / {group.name.en}</Link></p>
+      <h1>{group.name.ja} に参加 / Join {group.name.en}</h1>
+      {me ? (
+        <JoinFlow group={{ id: group.id, name: group.name }} methods={methods} verifierUrl={config.verifierUrl} devFakeMyna={config.devFakeMyna} />
+      ) : (
+        <div className="stack">
+          <Steps
+            steps={[
+              { label: "アカウント / Account", state: "current" },
+              { label: "表示名・方法 / Name & method", state: "todo" },
+              { label: "マイナで証明 / Prove", state: "todo" },
+              { label: "参加 / Join", state: "todo" },
+            ]}
+          />
+          <div className="card stack">
+            <p>
+              まずアカウントが必要です。World ID で1回だけ本人確認し、以後はパスキーでログインします。
+              <br />
+              First, an account: verify once with World ID, then log in with a passkey from then on.
+            </p>
+            <div className="row">
+              <Link className="button" href={`/signup?next=${encodeURIComponent(here)}`}>アカウント作成 / Create account</Link>
+              <Link className="button secondary" href={`/login?next=${encodeURIComponent(here)}`}>ログイン / Log in</Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

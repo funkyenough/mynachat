@@ -2,6 +2,7 @@
 // needed) and hands the proof job to the offscreen document, which runs the
 // TLSNotary WASM prover in a worker.
 
+import { ALLOWED_VERIFIERS } from './config.js';
 const MYNA = 'https://myna.go.jp';
 const API_URL = `${MYNA}/api/my/healthinfo/get-medicine-info`;
 const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -51,9 +52,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function runProof(tabId, { sessionId, groupId, method, verifierUrl, debugNoLogin }) {
-  verifierUrl = verifierUrl || 'ws://localhost:7047';
-  if (!/^ws:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(verifierUrl)) {
-    throw new Error(`verifierUrl must be a local ws:// URL, got ${verifierUrl}`);
+  verifierUrl = (verifierUrl || 'ws://localhost:7047').replace(/\/$/, '');
+  // The page names the verifier, so only accept a local one or one baked into this build.
+  const local = /^ws:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(verifierUrl);
+  if (!local && !ALLOWED_VERIFIERS.includes(verifierUrl)) {
+    throw new Error(`verifier ${verifierUrl} is not trusted by this extension build`);
   }
   if (method !== 'prescription') throw new Error(`method ${method} is not supported yet`);
 

@@ -1,0 +1,15 @@
+# Caddy gets a Let's Encrypt certificate for $DOMAIN automatically (ports 80/443 must be open).
+# For DOMAIN=localhost it uses its own local CA instead.
+{$DOMAIN} {
+	encode gzip
+
+	# The verifier is internal-only by path: the prover extension connects to
+	# wss://$DOMAIN/verifier/{prove,relay,result}.
+	handle_path /verifier/* {
+		reverse_proxy verifier:7047
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -1,15 +1,13 @@
 // Server-side configuration read from env (.env.local). Never import from client components.
 
 /**
- * World ID credentials. 4.0 credentials are verifiable credentials held in World App
- * (issuer schema IDs from IDKit); the *_legacy ones return World ID 3.0 proofs.
+ * World ID 4.0 credentials: verifiable credentials held in World App (issuer schema IDs
+ * from IDKit).
  */
 export const WORLD_CREDENTIALS = {
-  mnc: { v4: true, issuerSchemaId: 9310, label: "My Number Card" },
-  proof_of_human: { v4: true, issuerSchemaId: 1, label: "Proof of human (Orb)" },
-  passport: { v4: true, issuerSchemaId: 9303, label: "Passport" },
-  orb_legacy: { v4: false, issuerSchemaId: null, label: "Orb (World ID 3.0)" },
-  device_legacy: { v4: false, issuerSchemaId: null, label: "Device (World ID 3.0)" },
+  mnc: { issuerSchemaId: 9310, label: "My Number Card" },
+  proof_of_human: { issuerSchemaId: 1, label: "Proof of human (Orb)" },
+  passport: { issuerSchemaId: 9303, label: "Passport" },
 } as const;
 export type WorldCredential = keyof typeof WORLD_CREDENTIALS;
 
@@ -25,9 +23,20 @@ export const config = {
   credential: worldCredential(process.env.WLD_CREDENTIAL),
   verifierUrl: process.env.VERIFIER_URL ?? "ws://localhost:7047",
   devFakeMyna: process.env.DEV_FAKE_MYNA === "1",
+  /** WebAuthn relying party: the site's domain and exact origin (scheme + host + port). */
+  webauthnRpId: process.env.WEBAUTHN_RP_ID ?? "localhost",
+  webauthnOrigin: process.env.WEBAUTHN_ORIGIN ?? "http://localhost:3000",
 };
 
 /** Enrollment sessions expire this long after creation. */
 export const SESSION_TTL_MS = 30 * 60 * 1000;
 
-export const joinAction = (groupId: string) => `join-${groupId}`;
+/** Signup/recovery challenges (World ID step, passkey step) expire this long after creation. */
+export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
+
+/** World ID actions. "account" gives one account per human; each poll gets its own action. */
+export const ACCOUNT_ACTION = "account";
+export const pollAction = (pollId: number) => `poll-${pollId}`;
+
+/** World ID settings passed to client components. */
+export const worldConfig = { appId: config.appId, environment: config.environment, credential: config.credential };

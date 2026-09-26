@@ -30,6 +30,7 @@
   "groups": [
     {
       "id": "hayfever",
+      "icd10": ["J30.1", "J30.2"],
       "name": { "ja": "花粉症", "en": "Hay fever" },
       "description": { "ja": "デモ用グループ", "en": "Demo group" },
       "methods": {
@@ -59,6 +60,7 @@
     },
     {
       "id": "sma",
+      "icd10": ["G12.0", "G12.1"],
       "name": { "ja": "脊髄性筋萎縮症 (SMA)", "en": "Spinal muscular atrophy (SMA)" },
       "description": {
         "ja": "指定難病3。疾患名は自己申告、認定または治療薬で確認",
