@@ -1,0 +1,11 @@
+# Personal Myna Portal data and live credentials: never commit
+myna_data/
+.myna_cookie
+*.har
+selfinfo_run.log
+
+# Local tooling
+.claude/settings.local.json
+__pycache__/
+*.pyc
+.DS_Store
