@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import LangProvider from "@/components/LangProvider";
 import LangToggle from "@/components/LangToggle";
@@ -12,8 +13,8 @@ export const metadata: Metadata = {
 };
 
 const NAV = {
-  ja: { search: "病名検索", login: "ログイン", signup: "新規登録" },
-  en: { search: "Search", login: "Log in", signup: "Sign up" },
+  ja: { search: "病名検索", how: "仕組み", limits: "制限事項", login: "ログイン", signup: "新規登録", tagline: "同じ病気の人と、匿名で。" },
+  en: { search: "Search", how: "How it works", limits: "Limitations", login: "Log in", signup: "Sign up", tagline: "Anonymous communities for people who share a condition." },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,10 +26,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="site">
           <div>
             <Link href="/" className="brand">
+              <Image src="/logo.png" alt="" width={28} height={28} priority />
               <strong>mynachat</strong>
             </Link>
-            <nav className="row small">
+            <nav className="site-nav small" aria-label={lang === "ja" ? "ページ" : "Pages"}>
               <Link href="/search">{t.search}</Link>
+              <Link href="/how-it-works" className="nav-secondary">{t.how}</Link>
+              <Link href="/limitations" className="nav-secondary">{t.limits}</Link>
+            </nav>
+            <span className="spacer" />
+            <div className="site-actions row small">
               {me ? (
                 <Link href="/account" className="pill">
                   👤 {me.username}
@@ -42,12 +49,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </>
               )}
               <LangToggle lang={lang} />
-            </nav>
+            </div>
           </div>
         </header>
         <main>
           <LangProvider lang={lang}>{children}</LangProvider>
         </main>
+        <footer className="site">
+          <div>
+            <span>mynachat · {t.tagline}</span>
+            <span className="spacer" />
+            <Link href="/how-it-works">{t.how}</Link>
+            <Link href="/limitations">{t.limits}</Link>
+            <a href="https://github.com/funkyenough/mynachat" target="_blank" rel="noreferrer">GitHub</a>
+          </div>
+        </footer>
       </body>
     </html>
   );

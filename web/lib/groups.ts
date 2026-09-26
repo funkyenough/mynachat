@@ -82,6 +82,8 @@ export function loadCatalog(): Catalog {
 }
 
 export const listGroups = () => loadCatalog().groups;
+/** Groups someone can join today: at least one of their proof methods is available. */
+export const listOpenGroups = () => listGroups().filter((g) => g.methods.some((m) => getMethod(m).available));
 export const getGroup = (id: string) => loadCatalog().groups.find((g) => g.id === id);
 export const getMethod = (id: string): MethodInfo =>
   loadCatalog().methods[id] ?? { id, name: { ja: id, en: id }, available: false };

@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { Zen_Kaku_Gothic_New } from "next/font/google";
 import DiseaseSearch from "@/components/DiseaseSearch";
 import RedactionDemo from "@/components/RedactionDemo";
 import { currentAccount } from "@/lib/auth";
-import { listGroups } from "@/lib/groups";
+import { listOpenGroups } from "@/lib/groups";
 import { getLang, type Lang } from "@/lib/lang";
+import { display } from "./fonts";
 import "./landing.css";
 
 export const dynamic = "force-dynamic";
 
-const display = Zen_Kaku_Gothic_New({ weight: ["700", "900"], subsets: ["latin"], preload: false, variable: "--font-display" });
+
 
 const COPY = {
   ja: {
@@ -21,6 +21,7 @@ const COPY = {
     neverTitle: "伝わらないこと",
     never: ["氏名、住所、生年月日", "マイナンバー（読み取りもしません）", "ほかの病名、薬、医療機関、受診日", "あなたが参加しているほかのグループ"],
     stepsTitle: "参加までの流れ",
+    howLink: "証明の仕組みを詳しく見る →",
     steps: [
       ["病名を探す", "ICD-10 の全項目から、病名やコードで検索します。"],
       ["アカウントを作る", "World ID で一度だけ本人確認し、パスキーを登録します。"],
@@ -59,6 +60,7 @@ const COPY = {
     neverTitle: "Never learns",
     never: ["Your name, address or date of birth", "Your My Number, which is never even read", "Your other diagnoses, medicines, hospitals or visit dates", "Which other groups you belong to"],
     stepsTitle: "How joining works",
+    howLink: "See how the proof works in detail →",
     steps: [
       ["Find your condition", "Search every ICD-10 entry by name or code."],
       ["Create your account", "Verify once with World ID, then register a passkey."],
@@ -93,7 +95,7 @@ const COPY = {
 export default async function Landing() {
   const lang = await getLang();
   const t = COPY[lang];
-  const groups = listGroups();
+  const groups = listOpenGroups();
   const me = await currentAccount();
   const search = `/search`;
 
@@ -141,6 +143,9 @@ export default async function Landing() {
             </li>
           ))}
         </ol>
+        <p className="l-more">
+          <Link href="/how-it-works">{t.howLink}</Link>
+        </p>
       </section>
 
       <section className="l-inner l-section">

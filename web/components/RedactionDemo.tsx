@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import "./RedactionDemo.css";
 
 // A sample diagnosis (傷病名) exchange with Myna Portal, split into runs the prover reveals (R)
 // or hides. The endpoint and request are real; the response format is illustrative, since the

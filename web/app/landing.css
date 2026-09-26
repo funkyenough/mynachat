@@ -1,27 +1,23 @@
 /* Landing page. Full-bleed: frees <main> from the app's reading width. */
 main:has(> .landing) { max-width: none; padding: 0; }
-body:has(.landing) header.site > div { max-width: 1160px; padding-left: 24px; padding-right: 24px; }
 
 .landing {
-  --redact: #d6d5ce;
   --band: #eef6f2;
   --deep: #17574a;
-  --mark: #d4ebe3;
-  --mark-fg: #17574a;
 }
 @media (prefers-color-scheme: dark) {
-  .landing { --redact: #3b3b37; --band: #18221f; --deep: #123f35; --mark: #1f4a3f; --mark-fg: #bfeee0; }
+  .landing { --band: #18221f; --deep: #123f35; }
 }
 
 .landing h1, .landing h2, .landing h3 { font-family: var(--font-display), "Hiragino Sans", system-ui, sans-serif; }
-.l-inner { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-.l-section { padding: 72px 24px 8px; }
+.l-inner { max-width: calc(var(--page) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
+.l-section { padding: 72px var(--gutter) 8px; }
 .landing h2 { font-size: clamp(24px, 3.2vw, 32px); line-height: 1.3; margin: 0 0 32px; font-weight: 900; }
 
 
 /* --- hero --- */
 .l-hero {
-  max-width: 1160px; margin: 0 auto; padding: 64px 24px 80px;
+  max-width: calc(var(--page) + 2 * var(--gutter)); margin: 0 auto; padding: 64px var(--gutter) 80px;
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center;
 }
 .l-hero h1 { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.22; font-weight: 900; margin: 0; letter-spacing: -0.01em; }
@@ -30,25 +26,6 @@ body:has(.landing) header.site > div { max-width: 1160px; padding-left: 24px; pa
 .l-lede { font-size: 17px; line-height: 1.85; margin: 24px 0 0; max-width: 32em; color: var(--muted); }
 .landing[lang="en"] .l-lede { line-height: 1.65; }
 .l-search { margin-top: 32px; }
-
-/* --- redaction demo: the one loud thing on the page --- */
-.redact { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: 0 24px 48px -28px rgba(23, 87, 74, 0.35); }
-.redact-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
-.redact .seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
-.redact .seg button {
-  background: transparent; border: none; color: var(--muted); border-radius: 8px; padding: 6px 12px;
-  font-size: 13px; line-height: 1.25; font-weight: 700; white-space: nowrap;
-}
-.redact .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
-.redact .sample { font-size: 12px; color: var(--muted); }
-.redact pre {
-  margin: 0; padding: 16px; border-radius: 10px; background: var(--bg); overflow-x: auto;
-  font: 12.5px/1.75 ui-monospace, "SF Mono", Menlo, "Hiragino Sans", monospace; white-space: pre-wrap; overflow-wrap: anywhere;
-}
-.redact .hid { border-radius: 3px; transition: color 0.6s ease, background-color 0.6s ease; }
-.redact[data-view="group"] .hid { color: transparent; background-color: var(--redact); }
-.redact mark { background: var(--mark); color: var(--mark-fg); border-radius: 3px; padding: 1px 0; font-weight: 700; }
-.redact figcaption { font-size: 14px; line-height: 1.7; margin: 14px 4px 2px; min-height: 5.1em; color: var(--muted); }
 
 /* --- learns / never learns --- */
 .l-band { background: var(--band); padding: 64px 0; }
@@ -73,6 +50,8 @@ body:has(.landing) header.site > div { max-width: 1160px; padding-left: 24px; pa
 .l-steps li:not(:last-child)::after { content: ""; position: absolute; top: 19px; left: 48px; right: -18px; height: 2px; background: var(--line); }
 .l-steps h3 { font-size: 18px; margin: 0 0 8px; }
 .l-steps p { margin: 0; font-size: 14.5px; line-height: 1.75; }
+
+.l-more { margin: 8px 0 0; font-weight: 600; }
 
 /* --- principles --- */
 .l-principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px 40px; }
@@ -114,13 +93,10 @@ body:has(.landing) header.site > div { max-width: 1160px; padding-left: 24px; pa
   .l-principles { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 600px) {
-  .l-inner, .l-hero { padding-left: 16px; padding-right: 16px; }
-  .l-section { padding: 56px 16px 0; }
+  .l-section { padding-top: 56px; }
   .ledger, .l-steps, .l-principles { grid-template-columns: 1fr; gap: 28px; }
   .l-steps li::after { display: none; }
-  .redact pre { font-size: 11px; }
-  .redact .seg button { padding: 6px 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .redact .hid, .l-faq summary::after { transition: none; }
+  .l-faq summary::after { transition: none; }
 }

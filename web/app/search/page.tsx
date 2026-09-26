@@ -1,6 +1,6 @@
 import Link from "next/link";
 import DiseaseSearch from "@/components/DiseaseSearch";
-import { listGroups } from "@/lib/groups";
+import { listOpenGroups } from "@/lib/groups";
 import { getCode } from "@/lib/icd10";
 import { getT } from "@/lib/lang";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SearchPage() {
   const { lang, t } = await getT();
-  const groups = listGroups();
+  const groups = listOpenGroups();
   return (
     <>
       <section className="hero">

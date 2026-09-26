@@ -77,8 +77,9 @@ web app (Next.js) ◀── verdict (shared secret) ── membership granted
 |---|---|---|
 | 花粉症 / Hay fever | J30.1, J30.2 | アレグラ, ビラノア, ザイザル, アレロック, ナゾネックス… |
 | 片頭痛 / Migraine | G43 | イミグラン, マクサルト, レルパックス, ミグシス, エムガルティ… |
-| 指定難病（全般） | — | proof methods coming soon |
 | 脊髄性筋萎縮症 (SMA) | G12.0, G12.1 | スピンラザ, エブリスディ, ゾルゲンスマ |
+
+A 指定難病 (any) group is defined in the catalog but hidden until its proof methods (certification, subsidy certificate) are available.
 
 ## Try it
 

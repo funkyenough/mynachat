@@ -1,0 +1,65 @@
+/* Long-form explainer pages: /how-it-works and /limitations. */
+/* Same width as every other page: the shared --page container from globals.css. */
+.info { width: 100%; }
+.info h1, .info h2, .info h3 { font-family: var(--font-display), "Hiragino Sans", system-ui, sans-serif; }
+.info h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 8px 0 12px; font-weight: 900; }
+.info-lede { font-size: 17px; line-height: 1.8; color: var(--muted); margin: 0 0 28px; }
+.info h2 { font-size: 22px; margin: 48px 0 12px; padding-top: 20px; border-top: 1px solid var(--line); font-weight: 900; }
+.info h3 { font-size: 16px; margin: 0 0 6px; }
+.info p, .info li { line-height: 1.85; }
+.info-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 0; list-style: none; }
+.info-toc a { display: inline-block; font-size: 13px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg); }
+.info-toc a:hover { border-color: var(--accent); text-decoration: none; }
+
+/* Who talks to whom */
+.parties { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto auto; gap: 10px 14px; align-items: center; margin: 20px 0 8px; }
+.party { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 12px 14px; }
+.party strong { display: block; font-size: 15px; }
+.party span { font-size: 13px; color: var(--muted); line-height: 1.5; display: block; margin-top: 2px; }
+.party.you { border-color: var(--accent); }
+.link-h, .link-v { font-size: 12px; color: var(--accent); text-align: center; line-height: 1.4; }
+.link-h::before { content: "⟷"; display: block; font-size: 20px; line-height: 1; }
+.link-v::before { content: "⟷"; display: block; font-size: 20px; line-height: 1; transform: rotate(90deg); margin: 4px 0; }
+.parties .p-you { grid-column: 1; grid-row: 1; }
+.parties .l-tls { grid-column: 2; grid-row: 1; }
+.parties .p-myna { grid-column: 3; grid-row: 1; }
+.parties .l-mpc { grid-column: 1; grid-row: 2; }
+.parties .l-relay { grid-column: 3; grid-row: 2; }
+.parties .p-verifier { grid-column: 1 / 4; grid-row: 3; text-align: center; }
+.parties-note { font-size: 13px; color: var(--muted); }
+
+/* Numbered steps (a real sequence) */
+.info-steps { list-style: none; padding: 0; margin: 16px 0 0; counter-reset: step; }
+.info-steps > li { counter-increment: step; position: relative; padding: 0 0 26px 52px; }
+.info-steps > li::before {
+  content: counter(step); position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); color: var(--accent-fg); font-weight: 700;
+}
+.info-steps > li:not(:last-child)::after { content: ""; position: absolute; left: 16px; top: 40px; bottom: 4px; width: 2px; background: var(--line); }
+.info-steps h3 { padding-top: 5px; }
+.info-steps p { margin: 4px 0 0; }
+.info-demo { margin: 14px 0 4px; }
+
+.info-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+.info-table th, .info-table td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); line-height: 1.6; }
+.info-table th { font-size: 13px; color: var(--muted); font-weight: 600; }
+.info-table td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* Limitations */
+.limits { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.limits li { border-left: 3px solid var(--line); padding: 2px 0 2px 16px; }
+.limits li.major { border-left-color: var(--danger); }
+.limits h3 { margin-bottom: 2px; }
+.limits p { margin: 0; color: var(--muted); font-size: 15px; }
+.limit-plan { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 8px; }
+
+.info-next { margin-top: 48px; padding: 20px; border-radius: 12px; background: var(--accent-soft); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.info-next p { margin: 0; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .parties { grid-template-columns: 1fr; }
+  .parties > * { grid-column: 1 !important; grid-row: auto !important; }
+  .link-h::before { transform: rotate(90deg); margin: 4px 0; }
+  .info-table td:first-child { white-space: normal; }
+}
+
