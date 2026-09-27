@@ -66,6 +66,23 @@
       }
     },
     {
+      "id": "sinusitis",
+      "icd10": ["J01", "J32"],
+      "name": { "ja": "副鼻腔炎", "en": "Sinusitis" },
+      "description": {
+        "ja": "副鼻腔炎の治療薬（マクロライド少量長期療法・去痰薬）の処方で確認",
+        "en": "Verified by a sinusitis prescription (low-dose macrolide therapy or mucolytics)"
+      },
+      "methods": {
+        "prescription": {
+          "drugStems": [
+            "クラリスロマイシン", "クラリス", "クラリシッド", "エリスロマイシン", "エリスロシン",
+            "ロキシスロマイシン", "ルリッド", "カルボシステイン", "ムコダイン"
+          ]
+        }
+      }
+    },
+    {
       "id": "nanbyo-any",
       "name": { "ja": "指定難病（全般）", "en": "Designated intractable disease (any)" },
       "description": {
